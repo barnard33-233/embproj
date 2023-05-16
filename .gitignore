@@ -1,5 +1,6 @@
 # User-specific uVision files
 *.opt
+*.uvprojx
 *.uvopt
 *.uvoptx
 *.uvgui
@@ -16,6 +17,8 @@
 *.m66
 # define exception below if needed
 *.scr
+*.Log*
+*.dbgconf*
 
 # Object and HEX files
 *.axf
