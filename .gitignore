@@ -17,7 +17,7 @@
 *.m66
 # define exception below if needed
 *.scr
-*.Log*
+JLinkLog.txt
 *.dbgconf*
 
 # Object and HEX files
