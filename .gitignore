@@ -1,6 +1,6 @@
 # User-specific uVision files
 *.opt
-*.uvprojx
+# *.uvprojx
 *.uvopt
 *.uvoptx
 *.uvgui
