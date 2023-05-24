@@ -156,7 +156,7 @@ int main(void)
 			switch_key(); // 更新 flag 的值
       switch_flag();
 		}
-		if(stop == 1) continue; // 按下 1 后关闭
+		if(stop == 1) continue; // 按下 A 后关闭
 		if(present_pitch != pause){
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
 			HAL_Delay(present_pitch);
@@ -272,12 +272,18 @@ void switch_flag(){
         speed = speed_buffer;
       } // else: do not commit
       else{
-        printf("not commit\n");
+				disable_SysTick();
+        printf("1:not commit, %d\n", speed_buffer);
+				enable_SysTick();
       }
+			speed_buffer = 0;
       recieving = 0;
     }
     else {
-      printf("not commit\n");
+			disable_SysTick();
+      printf("2:not commit, %d\n", speed_buffer);
+			enable_SysTick();
+			speed_buffer = 0;
       recieving = 0;
     }
   }
