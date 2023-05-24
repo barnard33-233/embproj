@@ -105,11 +105,9 @@ int main(void)
   /* MCU Configuration */
   init_device();
 
-  disable_SysTick();
   printf("\n\r-------------------------------------------------\r\n");
   printf("\n\r Muti speed music player! \r\n");
   printf("\n\r-------------------------------------------------\r\n");
-  enable_SysTick();
 
   /* Infinite loop */
   while (1)
@@ -125,9 +123,7 @@ int main(void)
       // TODO: 多读几次 跟之前的不同就进行处理
 			I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);
 			switch_key(); // 更新 flag 的值
-      disable_SysTick();
 			printf("Get keyvalue = %#x => flag = %d\r\n",Rx1_Buffer[0], flag);
-      enable_SysTick();
       switch_flag();
 		}
 		if(stop == 1) continue; // 按下 A 后关闭
@@ -244,7 +240,7 @@ void switch_key(void) {
 
 void switch_flag(void){
   if(recieving){ // recieving user input.
-    if(flag >= 0 && flag <= 9){
+    if(flag <= 9){
       speed_buffer = speed_buffer * 10 + flag;
     }
     else if(flag == 14){ // commit
@@ -252,17 +248,13 @@ void switch_flag(void){
         speed = speed_buffer;
       } // else: do not commit
       else{
-				disable_SysTick();
         printf("1:not commit, %d\n", speed_buffer);
-				enable_SysTick();
       }
 			speed_buffer = 0;
       recieving = 0;
     }
     else {
-			disable_SysTick();
       printf("2:not commit, %d\n", speed_buffer);
-			enable_SysTick();
 			speed_buffer = 0;
       recieving = 0;
     }
