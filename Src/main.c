@@ -50,6 +50,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
+inline void disable_SysTick(); 
+inline void enable_SysTick();
 
 const uint16_t speed = 120;
 
@@ -121,9 +123,11 @@ int main(void)
   MX_USART1_UART_Init();
 
   /* USER CODE BEGIN 2 */
+  disable_SysTick();
   printf("\n\r-------------------------------------------------\r\n");
   printf("\n\r 音乐喵喵喵！ \r\n");
   printf("\n\r-------------------------------------------------\r\n");
+  enable_SysTick();
 
   /* USER CODE END 2 */
 
@@ -137,7 +141,9 @@ int main(void)
 		if (flag1 == 1) {
 			flag1 = 0;
 			I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);
+      disable_SysTick();
 			printf("\n\r按键键值 = %#x\r\n",Rx1_Buffer[0]);
+      enable_SysTick();
 			switch_key(); // 更新 flag 的值
 		}
 		if(flag == 1) continue; // 按下 1 后关闭
@@ -189,12 +195,26 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+inline void disable_SysTick(){
+  SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
+                   //SysTick_CTRL_TICKINT_Msk   |
+                   0 |
+                   SysTick_CTRL_ENABLE_Msk;    
+}
+inline void enable_SysTick(){
+  SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
+                   SysTick_CTRL_TICKINT_Msk   |
+                   SysTick_CTRL_ENABLE_Msk;    
+}
 uint32_t Du_to_us(enum DURATION du)
 {
 	return (1000000 * 60 * du) / (speed * NOTE4);
 }
 
 void HAL_SYSTICK_Callback(void){
+  if(flag == 1){
+    return;
+  }
 	timer ++;
 	if(timer >= time - time/32){
 		present_pitch = pause;
