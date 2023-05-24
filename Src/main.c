@@ -40,6 +40,7 @@
 #include "stdio.h"
 
 #include "const.h"
+#include "IWDG.h"
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -87,6 +88,7 @@ uint8_t recieving = 0;
 uint16_t speed_buffer;
 uint8_t speed_index = 0;
 
+
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
@@ -104,6 +106,8 @@ int main(void)
 {
   /* MCU Configuration */
   init_device();
+  
+  IWDG_Init();
 
   disable_SysTick();
   printf("\n\r-------------------------------------------------\r\n");
@@ -289,6 +293,9 @@ int fputc(int ch, FILE *f)
 	HAL_UART_Transmit(&huart1,tmp,1,10000);	
 	return ch;
 }
+
+// IWDG:
+
 
 // HAL_delay ÖØÐ´
 void HAL_delay(__IO uint32_t delay) {
