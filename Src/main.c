@@ -286,7 +286,7 @@ int fputc(int ch, FILE *f)
 { 
   uint8_t tmp[1]={0};
 	tmp[0] = (uint8_t)ch;
-	HAL_UART_Transmit(&huart1,tmp,1,10);	
+	HAL_UART_Transmit(&huart1,tmp,1,10000);	
 	return ch;
 }
 
