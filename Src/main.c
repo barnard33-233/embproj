@@ -36,17 +36,11 @@
 #include "usart.h"
 #include "gpio.h"
 
-/* USER CODE BEGIN Includes */
 #include "zlg7290.h"
 #include "stdio.h"
 
 #include "const.h"
 
-/* USER CODE END Includes */
-
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
@@ -91,8 +85,6 @@ uint8_t recieving = 0;
 uint16_t speed_buffer;
 uint8_t speed_index = 0;
 
-/* USER CODE END PV */
-
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
@@ -102,21 +94,12 @@ inline void enable_SysTick();
 void switch_key(void); // 将键值转化为对应的数字
 void switch_flag(void);
 
-/* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
-/* USER CODE END PFP */
-
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 
 int main(void)
 {
 
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
+  // TODO: timer 等定时器不应该在循环之前就开始进行 
 
   /* MCU Configuration----------------------------------------------------------*/
 
@@ -131,24 +114,20 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
 
-  /* USER CODE BEGIN 2 */
   disable_SysTick();
   printf("\n\r-------------------------------------------------\r\n");
   printf("\n\r 音乐喵喵喵！ \r\n");
   printf("\n\r-------------------------------------------------\r\n");
   enable_SysTick();
 
-  /* USER CODE END 2 */
-
   /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
-  /* USER CODE END WHILE */
-			
-  /* USER CODE BEGIN 3 */
+    // TODO: 添加定时任务: 定时初始化所有设备 (500ms)
+    // TODO: 添加定时任务: 数据备份与恢复
 		if (flag1 == 1) {
 			flag1 = 0;
+      // TODO: 多读几次 跟之前的不同就进行处理
 			I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);
       disable_SysTick();
 			printf("\n\r按键键值 = %#x\r\n",Rx1_Buffer[0]);
@@ -174,8 +153,6 @@ int main(void)
       timer = 0;
     }
   }
-  /* USER CODE END 3 */
-
 }
 
 /** System Clock Configuration
@@ -214,7 +191,7 @@ void SystemClock_Config(void)
 
 }
 
-/* USER CODE BEGIN 4 */
+
 static inline void disable_SysTick(){
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    //SysTick_CTRL_TICKINT_Msk   |
@@ -233,6 +210,7 @@ uint32_t Du_to_us(enum DURATION du)
 }
 
 void HAL_SYSTICK_Callback(void){
+  // TODO: 添加定时任务触发计时器
   if(stop == 1){
     return;
   }
@@ -309,7 +287,8 @@ int fputc(int ch, FILE *f)
 	HAL_UART_Transmit(&huart1,tmp,1,10);	
 	return ch;
 }
-/* USER CODE END 4 */
+
+// TODO: HAL_delay 重写
 
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -320,6 +299,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
+  // TODO: 这里该写什么呢 ?
   while(1) 
   {
   }
@@ -341,17 +321,10 @@ void assert_failed(uint8_t* file, uint32_t line)
   /* User can add his own implementation to report the file name and line number,
     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
-
+  // TODO: 这里该加什么呢 ?
 }
 
 #endif
 
-/**
-  * @}
-  */ 
-
-/**
-  * @}
-*/ 
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
