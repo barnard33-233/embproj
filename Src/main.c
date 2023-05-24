@@ -156,7 +156,7 @@ int main(void)
 			switch_key(); // 更新 flag 的值
       switch_flag();
 		}
-		if(flag == 1) continue; // 按下 1 后关闭
+		if(stop == 1) continue; // 按下 1 后关闭
 		if(present_pitch != pause){
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
 			HAL_Delay(present_pitch);
@@ -271,9 +271,13 @@ void switch_flag(){
       if(speed_buffer <= 170 && speed_buffer >= 50){ // valid value
         speed = speed_buffer;
       } // else: do not commit
+      else{
+        printf("not commit\n");
+      }
       recieving = 0;
     }
     else {
+      printf("not commit\n");
       recieving = 0;
     }
   }
