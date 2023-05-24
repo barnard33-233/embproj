@@ -50,10 +50,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
-inline void disable_SysTick(); 
-inline void enable_SysTick();
+#define SPEED_BUFFER_MAX 4
 
-const uint16_t speed = 120;
+uint16_t speed = 120;
 
 const struct Note score[SCORE_LENGTH] = {
 	{C4, NOTE4},
@@ -80,10 +79,17 @@ enum DURATION present_du = NOTE1;
 uint32_t score_index = 0;
 uint32_t time = 1;
 uint32_t timer = 0;
+uint8_t stop = 0;
 
+// ZLG7290 reading and writing
 uint8_t flag = 0xff; // 用于保存键值对应的数字
 uint8_t flag1 = 0; // 中断标志位
 uint8_t Rx1_Buffer[1] = {0}; // 用于保存键值
+
+// change speed
+uint8_t recieving = 0; 
+uint16_t speed_buffer;
+uint8_t speed_index = 0;
 
 /* USER CODE END PV */
 
@@ -91,7 +97,10 @@ uint8_t Rx1_Buffer[1] = {0}; // 用于保存键值
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
 void Error_Handler(void);
+inline void disable_SysTick(); 
+inline void enable_SysTick();
 void switch_key(void); // 将键值转化为对应的数字
+void switch_flag(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -145,6 +154,7 @@ int main(void)
 			printf("\n\r按键键值 = %#x\r\n",Rx1_Buffer[0]);
       enable_SysTick();
 			switch_key(); // 更新 flag 的值
+      switch_flag();
 		}
 		if(flag == 1) continue; // 按下 1 后关闭
 		if(present_pitch != pause){
@@ -153,6 +163,16 @@ int main(void)
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
 			HAL_Delay(present_pitch);
 		}
+    if(timer >= time - time/32){
+      present_pitch = pause;
+    }
+    if(timer >= time){
+      present_du = score[score_index].duration;
+      present_pitch = score[score_index].pitch;
+      time = Du_to_us(present_du);
+      score_index = (score_index + 1) % SCORE_LENGTH;
+      timer = 0;
+    }
   }
   /* USER CODE END 3 */
 
@@ -195,42 +215,33 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-inline void disable_SysTick(){
+static inline void disable_SysTick(){
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    //SysTick_CTRL_TICKINT_Msk   |
                    0 |
                    SysTick_CTRL_ENABLE_Msk;    
 }
-inline void enable_SysTick(){
+static inline void enable_SysTick(){
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    SysTick_CTRL_TICKINT_Msk   |
                    SysTick_CTRL_ENABLE_Msk;    
 }
+
 uint32_t Du_to_us(enum DURATION du)
 {
 	return (1000000 * 60 * du) / (speed * NOTE4);
 }
 
 void HAL_SYSTICK_Callback(void){
-  if(flag == 1){
+  if(stop == 1){
     return;
   }
-	timer ++;
-	if(timer >= time - time/32){
-		present_pitch = pause;
-	}
-	if(timer >= time){
-		present_du = score[score_index].duration;
-		present_pitch = score[score_index].pitch;
-		time = Du_to_us(present_du);
-		score_index = (score_index + 1) % SCORE_LENGTH;
-		timer = 0;
-	}
+  timer ++;
 }
 
 void switch_key(void) {
   switch (Rx1_Buffer[0]) {
-    case 0x1c: flag = 1; break;
+    case 0x1c: flag = 1; break; // numbers
 		case 0x1b: flag = 2; break;
 		case 0x1a: flag = 3; break;
 		case 0x14: flag = 4; break;
@@ -239,7 +250,40 @@ void switch_key(void) {
     case 0x0c: flag = 7; break;
 		case 0x0b: flag = 8; break;
 		case 0x0a: flag = 9; break;
-		default: flag = 0; break;
+		case 0x03: flag = 0;break; // 0
+
+		case 0x19: flag = 10;break; // A
+		case 0x11: flag = 11;break; // B
+		case 0x09: flag = 12;break; // C
+		case 0x01: flag = 13;break; // D
+		case 0x02: flag = 14;break; // #
+		case 0x04: flag = 15;break; // *
+		default: break;
+  }
+}
+
+void switch_flag(){
+  if(recieving){ // recieving user input.
+    if(flag >= 0 && flag <= 9){
+      speed_buffer = speed_buffer * 10 + flag;
+    }
+    else if(flag == 14){ // commit
+      if(speed_buffer <= 170 && speed_buffer >= 50){ // valid value
+        speed = speed_buffer;
+      } // else: do not commit
+      recieving = 0;
+    }
+    else {
+      recieving = 0;
+    }
+  }
+  else{
+    switch (flag) {
+    case 14:recieving=1;break;
+    case 10:stop = 1;break;
+    case 11:stop = 0;break;
+    default:break;
+    }
   }
 }
 
