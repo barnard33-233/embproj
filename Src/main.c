@@ -32,9 +32,14 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
+#include "i2c.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* USER CODE BEGIN Includes */
+#include "zlg7290.h"
+#include "stdio.h"
+
 #include "const.h"
 
 /* USER CODE END Includes */
@@ -45,6 +50,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
+inline void disable_SysTick(); 
+inline void enable_SysTick();
 
 const uint16_t speed = 120;
 
@@ -74,11 +81,17 @@ uint32_t score_index = 0;
 uint32_t time = 1;
 uint32_t timer = 0;
 
+uint8_t flag = 0xff; // 用于保存键值对应的数字
+uint8_t flag1 = 0; // 中断标志位
+uint8_t Rx1_Buffer[1] = {0}; // 用于保存键值
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
+void Error_Handler(void);
+void switch_key(void); // 将键值转化为对应的数字
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -106,9 +119,15 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_I2C1_Init();
+  MX_USART1_UART_Init();
 
   /* USER CODE BEGIN 2 */
-
+  disable_SysTick();
+  printf("\n\r-------------------------------------------------\r\n");
+  printf("\n\r 音乐喵喵喵！ \r\n");
+  printf("\n\r-------------------------------------------------\r\n");
+  enable_SysTick();
 
   /* USER CODE END 2 */
 
@@ -119,6 +138,15 @@ int main(void)
   /* USER CODE END WHILE */
 			
   /* USER CODE BEGIN 3 */
+		if (flag1 == 1) {
+			flag1 = 0;
+			I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);
+      disable_SysTick();
+			printf("\n\r按键键值 = %#x\r\n",Rx1_Buffer[0]);
+      enable_SysTick();
+			switch_key(); // 更新 flag 的值
+		}
+		if(flag == 1) continue; // 按下 1 后关闭
 		if(present_pitch != pause){
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
 			HAL_Delay(present_pitch);
@@ -167,12 +195,26 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+inline void disable_SysTick(){
+  SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
+                   //SysTick_CTRL_TICKINT_Msk   |
+                   0 |
+                   SysTick_CTRL_ENABLE_Msk;    
+}
+inline void enable_SysTick(){
+  SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
+                   SysTick_CTRL_TICKINT_Msk   |
+                   SysTick_CTRL_ENABLE_Msk;    
+}
 uint32_t Du_to_us(enum DURATION du)
 {
 	return (1000000 * 60 * du) / (speed * NOTE4);
 }
 
 void HAL_SYSTICK_Callback(void){
+  if(flag == 1){
+    return;
+  }
 	timer ++;
 	if(timer >= time - time/32){
 		present_pitch = pause;
@@ -186,7 +228,49 @@ void HAL_SYSTICK_Callback(void){
 	}
 }
 
+void switch_key(void) {
+  switch (Rx1_Buffer[0]) {
+    case 0x1c: flag = 1; break;
+		case 0x1b: flag = 2; break;
+		case 0x1a: flag = 3; break;
+		case 0x14: flag = 4; break;
+		case 0x13: flag = 5; break;
+		case 0x12: flag = 6; break;
+    case 0x0c: flag = 7; break;
+		case 0x0b: flag = 8; break;
+		case 0x0a: flag = 9; break;
+		default: flag = 0; break;
+  }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	flag1 = 1;
+}
+
+int fputc(int ch, FILE *f)
+{ 
+  uint8_t tmp[1]={0};
+	tmp[0] = (uint8_t)ch;
+	HAL_UART_Transmit(&huart1,tmp,1,10);	
+	return ch;
+}
 /* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @param  None
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler */
+  /* User can add his own implementation to report the HAL error return state */
+  while(1) 
+  {
+  }
+  /* USER CODE END Error_Handler */ 
+}
 
 #ifdef USE_FULL_ASSERT
 
