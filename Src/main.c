@@ -71,7 +71,7 @@ enum PITCH present_pitch = pause;
 enum DURATION present_du = NOTE1;
 
 uint32_t score_index = 0;
-uint32_t time = 1;
+uint32_t note_time = 0; // 当前音符的持续时间 (us)
 uint32_t music_timer = 0; // 用于音乐播放
 uint32_t event_timer = 0; // 用于设备的常规定时初始化
 uint8_t stop = 0;
@@ -137,13 +137,13 @@ int main(void)
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
 			HAL_Delay(present_pitch);
 		}
-    if(music_timer >= time - time/32){
+    if(music_timer >= note_time - note_time/32){
       present_pitch = pause;
     }
-    if(music_timer >= time){
+    if(music_timer >= note_time){
       present_du = score[score_index].duration;
       present_pitch = score[score_index].pitch;
-      time = Du_to_us(present_du);
+      note_time = Du_to_us(present_du);
       score_index = (score_index + 1) % SCORE_LENGTH;
       music_timer = 0;
     }
