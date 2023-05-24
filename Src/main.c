@@ -151,6 +151,7 @@ int main(void)
       score_index = (score_index + 1) % SCORE_LENGTH;
       music_timer = 0;
     }
+    IWDG_Feed();
   }
 }
 
