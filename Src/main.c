@@ -72,10 +72,12 @@ enum DURATION present_du = NOTE1;
 
 uint32_t score_index = 0;
 uint32_t time = 1;
-uint32_t timer = 0;
+uint32_t music_timer = 0; // 用于音乐播放
+uint32_t event_timer = 0; // 用于设备的常规定时初始化
 uint8_t stop = 0;
 
 // ZLG7290 reading and writing
+uint8_t enable_music = 0;
 uint8_t flag = 0xff; // 用于保存键值对应的数字
 uint8_t flag1 = 0; // 中断标志位
 uint8_t Rx1_Buffer[1] = {0}; // 用于保存键值
@@ -89,50 +91,43 @@ uint8_t speed_index = 0;
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
 void Error_Handler(void);
-inline void disable_SysTick(); 
-inline void enable_SysTick();
 void switch_key(void); // 将键值转化为对应的数字
 void switch_flag(void);
+void HAL_delay(__IO uint32_t delay);
 
+__STATIC_INLINE void init_device(void);
+__STATIC_INLINE void disable_SysTick(void); 
+__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
 
 int main(void)
 {
-
-  // TODO: timer 等定时器不应该在循环之前就开始进行 
-
-  /* MCU Configuration----------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_I2C1_Init();
-  MX_USART1_UART_Init();
+  /* MCU Configuration */
+  init_device();
 
   disable_SysTick();
   printf("\n\r-------------------------------------------------\r\n");
-  printf("\n\r 音乐喵喵喵！ \r\n");
+  printf("\n\r Muti speed music player! \r\n");
   printf("\n\r-------------------------------------------------\r\n");
   enable_SysTick();
 
   /* Infinite loop */
   while (1)
   {
-    // TODO: 添加定时任务: 定时初始化所有设备 (500ms)
+    enable_music = 1; // 开启定时事件: 音乐
+    if (event_timer >= 500000) {
+      // 定时事件 每 500 ms 刷新一次设备和引脚
+      init_device();
+    }
     // TODO: 添加定时任务: 数据备份与恢复
 		if (flag1 == 1) {
 			flag1 = 0;
       // TODO: 多读几次 跟之前的不同就进行处理
 			I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);
-      disable_SysTick();
-			printf("\n\r按键键值 = %#x\r\n",Rx1_Buffer[0]);
-      enable_SysTick();
 			switch_key(); // 更新 flag 的值
+      disable_SysTick();
+			printf("Get keyvalue = %#x => flag = %d\r\n",Rx1_Buffer[0], flag);
+      enable_SysTick();
       switch_flag();
 		}
 		if(stop == 1) continue; // 按下 A 后关闭
@@ -142,15 +137,15 @@ int main(void)
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
 			HAL_Delay(present_pitch);
 		}
-    if(timer >= time - time/32){
+    if(music_timer >= time - time/32){
       present_pitch = pause;
     }
-    if(timer >= time){
+    if(music_timer >= time){
       present_du = score[score_index].duration;
       present_pitch = score[score_index].pitch;
       time = Du_to_us(present_du);
       score_index = (score_index + 1) % SCORE_LENGTH;
-      timer = 0;
+      music_timer = 0;
     }
   }
 }
@@ -191,14 +186,24 @@ void SystemClock_Config(void)
 
 }
 
+__STATIC_INLINE void init_device(void) {
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+  /* Configure the system clock */
+  SystemClock_Config();
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_I2C1_Init();
+  MX_USART1_UART_Init();
+}
 
-static inline void disable_SysTick(){
+__STATIC_INLINE void disable_SysTick(void) {
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    //SysTick_CTRL_TICKINT_Msk   |
                    0 |
                    SysTick_CTRL_ENABLE_Msk;    
 }
-static inline void enable_SysTick(){
+__STATIC_INLINE void enable_SysTick(void) {
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    SysTick_CTRL_TICKINT_Msk   |
                    SysTick_CTRL_ENABLE_Msk;    
@@ -209,12 +214,9 @@ uint32_t Du_to_us(enum DURATION du)
 	return (1000000 * 60 * du) / (speed * NOTE4);
 }
 
-void HAL_SYSTICK_Callback(void){
-  // TODO: 添加定时任务触发计时器
-  if(stop == 1){
-    return;
-  }
-  timer ++;
+void HAL_SYSTICK_Callback(void) {
+  event_timer ++;
+  if (stop == 0 && enable_music == 1) music_timer ++;
 }
 
 void switch_key(void) {
@@ -240,7 +242,7 @@ void switch_key(void) {
   }
 }
 
-void switch_flag(){
+void switch_flag(void){
   if(recieving){ // recieving user input.
     if(flag >= 0 && flag <= 9){
       speed_buffer = speed_buffer * 10 + flag;
@@ -288,7 +290,24 @@ int fputc(int ch, FILE *f)
 	return ch;
 }
 
-// TODO: HAL_delay 重写
+// HAL_delay 重写
+void HAL_delay(__IO uint32_t delay) {
+  uint32_t start = 0, end = 0;
+  uint32_t now = 0, past = 0;
+  uint32_t count = 0;
+  now = past = start = HAL_GetTick();
+  end = start + delay;
+  while( (end < start && (now >= start || now <= end)) || (start <= end && (now >= start && now <= end))) {
+    now = HAL_GetTick();
+    if (now == past) {
+      // 如果 now 在 10000 次循环后仍然没有变化
+      // 说明定时器出错
+      if (++count > 10000) Error_Handler();
+    } else {
+      past = now, count = 0;
+    }
+  }
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -300,6 +319,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
   // TODO: 这里该写什么呢 ?
+  printf("Something bad happen!\r\n");
   while(1) 
   {
   }
