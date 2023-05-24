@@ -63,7 +63,6 @@ JLinkLog.txt
 *.pdsc
 *.plg
 # define exception below if needed
-*.sct
 *.sfd
 *.sfr
 
