@@ -298,12 +298,12 @@
               <OCR_RVCT9>
                 <Type>0</Type>
                 <StartAddress>0x20000000</StartAddress>
-                <Size>0x10000</Size>
+                <Size>0x20000</Size>
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
                 <StartAddress>0x20020000</StartAddress>
-                <Size>0x10000</Size>
+                <Size>0x20000</Size>
               </OCR_RVCT10>
             </OnChipMemories>
             <RvctStartVector></RvctStartVector>
@@ -503,6 +503,11 @@
               <FileName>zlg7290.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\zlg7290.c</FilePath>
+            </File>
+            <File>
+              <FileName>bak.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\bak.c</FilePath>
             </File>
           </Files>
         </Group>
