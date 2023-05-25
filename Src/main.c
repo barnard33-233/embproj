@@ -36,23 +36,16 @@
 #include "usart.h"
 #include "gpio.h"
 
-/* USER CODE BEGIN Includes */
 #include "zlg7290.h"
 #include "stdio.h"
 
 #include "const.h"
+#include "bak.h"
 
-/* USER CODE END Includes */
-
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
 #define SPEED_BUFFER_MAX 4
-
-uint16_t speed = 120;
 
 const struct Note score[SCORE_LENGTH] = {
 	{C4, NOTE4},
@@ -75,107 +68,82 @@ const struct Note score[SCORE_LENGTH] = {
 
 enum PITCH present_pitch = pause;
 enum DURATION present_du = NOTE1;
+uint32_t note_time = 0;
+uint8_t enable_music = 0;
 
-uint32_t score_index = 0;
-uint32_t time = 1;
-uint32_t timer = 0;
-uint8_t stop = 0;
-
-// ZLG7290 reading and writing
-uint8_t flag = 0xff; // 用于保存键值对应的数字
-uint8_t flag1 = 0; // 中断标志位
-uint8_t Rx1_Buffer[1] = {0}; // 用于保存键值
-
-// change speed
-uint8_t recieving = 0; 
-uint16_t speed_buffer;
-uint8_t speed_index = 0;
-
-/* USER CODE END PV */
+uint32_t flush_timer = 0;
+uint32_t music_timer = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
-void Error_Handler(void);
-inline void disable_SysTick(); 
-inline void enable_SysTick();
+void Error_Handler(int err);
 void switch_key(void); // 将键值转化为对应的数字
 void switch_flag(void);
-
-/* USER CODE BEGIN PFP */
+void HAL_delay(__IO uint32_t delay);
+void print_data(void);
+void HAL_SYSTICK_Callback(void);
+void init_device(void);
+//__STATIC_INLINE void disable_SysTick(void); 
+//__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
-
-/* USER CODE END PFP */
-
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 
 int main(void)
 {
 
-  /* USER CODE BEGIN 1 */
+  /* MCU Configuration */
+  restore_data();
 
-  /* USER CODE END 1 */
+  init_device();
 
-  /* MCU Configuration----------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_I2C1_Init();
-  MX_USART1_UART_Init();
-
-  /* USER CODE BEGIN 2 */
-  disable_SysTick();
-  printf("\n\r-------------------------------------------------\r\n");
-  printf("\n\r 音乐喵喵喵！ \r\n");
-  printf("\n\r-------------------------------------------------\r\n");
-  enable_SysTick();
-
-  /* USER CODE END 2 */
+  printf("-------------------------------------------------\r\n");
+  printf(" Muti speed music player! \r\n");
+  printf("-------------------------------------------------\r\n");
+  print_data();
+	printf("-------------------------------------------------\r\n");
 
   /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
-  /* USER CODE END WHILE */
-			
-  /* USER CODE BEGIN 3 */
-		if (flag1 == 1) {
-			flag1 = 0;
-			I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);
-      disable_SysTick();
-			printf("\n\r按键键值 = %#x\r\n",Rx1_Buffer[0]);
-      enable_SysTick();
+    if (get_stop() == 1) enable_music = 0;
+    else enable_music = 1;
+    if (flush_timer /*get_flush_timer()*/ >= 500000) {
+      // 定时事件 每 500 ms
+      flush_timer = 0; // reset_flush_timer();
+      // 刷新设备和引脚
+      init_device();
+      // 同步所有备份数据
+      recover_backups();
+    }
+		if (get_flag1() == 1) {
+      uint8_t tmp_rx1 = 0;
+			set_flag1(0);
+			I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
+      set_Rx1_Buffer(tmp_rx1);
 			switch_key(); // 更新 flag 的值
+			printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
       switch_flag();
 		}
-		if(stop == 1) continue; // 按下 A 后关闭
+    if (enable_music == 0) continue;
+    // uint32_t music_timer = get_music_timer();
+		uint32_t score_index = get_score_index();
+		if(music_timer >= note_time - note_time/32){
+      present_pitch = pause;
+    }
+    if(music_timer >= note_time){
+      present_du = score[score_index].duration;
+      present_pitch = score[score_index].pitch;
+      note_time = Du_to_us(present_du);
+      set_score_index((score_index + 1) % SCORE_LENGTH);
+      music_timer = 0;
+    }
 		if(present_pitch != pause){
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
 			HAL_Delay(present_pitch);
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
 			HAL_Delay(present_pitch);
 		}
-    if(timer >= time - time/32){
-      present_pitch = pause;
-    }
-    if(timer >= time){
-      present_du = score[score_index].duration;
-      present_pitch = score[score_index].pitch;
-      time = Du_to_us(present_du);
-      score_index = (score_index + 1) % SCORE_LENGTH;
-      timer = 0;
-    }
   }
-  /* USER CODE END 3 */
-
 }
 
 /** System Clock Configuration
@@ -214,112 +182,156 @@ void SystemClock_Config(void)
 
 }
 
-/* USER CODE BEGIN 4 */
-static inline void disable_SysTick(){
+void init_device(void) {
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+  /* Configure the system clock */
+  SystemClock_Config();
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_I2C1_Init();
+  MX_USART1_UART_Init();
+}
+
+/*__STATIC_INLINE void disable_SysTick(void) {
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    //SysTick_CTRL_TICKINT_Msk   |
                    0 |
                    SysTick_CTRL_ENABLE_Msk;    
 }
-static inline void enable_SysTick(){
+__STATIC_INLINE void enable_SysTick(void) {
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    SysTick_CTRL_TICKINT_Msk   |
                    SysTick_CTRL_ENABLE_Msk;    
-}
+}*/
 
 uint32_t Du_to_us(enum DURATION du)
 {
-	return (1000000 * 60 * du) / (speed * NOTE4);
+	return (1000000 * 60 * du) / (get_speed() * NOTE4);
 }
 
-void HAL_SYSTICK_Callback(void){
-  if(stop == 1){
-    return;
-  }
-  timer ++;
+void HAL_SYSTICK_Callback(void) {
+  flush_timer ++; // plus_flush_timer();
+  if (enable_music == 1) music_timer ++;
 }
 
 void switch_key(void) {
-  switch (Rx1_Buffer[0]) {
-    case 0x1c: flag = 1; break; // numbers
-		case 0x1b: flag = 2; break;
-		case 0x1a: flag = 3; break;
-		case 0x14: flag = 4; break;
-		case 0x13: flag = 5; break;
-		case 0x12: flag = 6; break;
-    case 0x0c: flag = 7; break;
-		case 0x0b: flag = 8; break;
-		case 0x0a: flag = 9; break;
-		case 0x03: flag = 0;break; // 0
-
-		case 0x19: flag = 10;break; // A
-		case 0x11: flag = 11;break; // B
-		case 0x09: flag = 12;break; // C
-		case 0x01: flag = 13;break; // D
-		case 0x02: flag = 14;break; // #
-		case 0x04: flag = 15;break; // *
+  switch (get_Rx1_Buffer()) {
+    case 0x1c: set_flag(1); break; // numbers
+		case 0x1b: set_flag(2); break;
+		case 0x1a: set_flag(3); break;
+		case 0x14: set_flag(4); break;
+		case 0x13: set_flag(5); break;
+		case 0x12: set_flag(6); break;
+    case 0x0c: set_flag(7); break;
+		case 0x0b: set_flag(8); break;
+		case 0x0a: set_flag(9); break;
+		case 0x03: set_flag(0); break; // 0
+		case 0x19: set_flag(10); break; // A
+		case 0x11: set_flag(11); break; // B
+		case 0x09: set_flag(12); break; // C
+		case 0x01: set_flag(13); break; // D
+		case 0x02: set_flag(14); break; // #
+		case 0x04: set_flag(15); break; // *
 		default: break;
   }
 }
 
-void switch_flag(){
-  if(recieving){ // recieving user input.
-    if(flag >= 0 && flag <= 9){
-      speed_buffer = speed_buffer * 10 + flag;
-    }
-    else if(flag == 14){ // commit
+void switch_flag(void){
+  uint8_t flag = get_flag();
+  if (get_receiving()) { // receiving user input.
+    uint16_t speed_buffer = get_speed_buffer();
+    if (flag <= 9) {
+      set_speed_buffer(speed_buffer * 10 + flag);
+      printf("Receiving... (%d)\r\n", speed_buffer * 10 + flag);
+    } else if (flag == 14) { // commit
       if(speed_buffer <= 170 && speed_buffer >= 50){ // valid value
-        speed = speed_buffer;
-      } // else: do not commit
-      else{
-				disable_SysTick();
-        printf("1:not commit, %d\n", speed_buffer);
-				enable_SysTick();
+        set_speed(speed_buffer);
+        printf("Commit! Change speed to %d.\r\n", get_speed());
+      } else{
+        printf("Invalid value: %d.\r\n", speed_buffer);
       }
-			speed_buffer = 0;
-      recieving = 0;
+			set_speed_buffer(0);
+      set_receiving(0);
+      printf("Finish receiving!\r\n");
+    } else {
+      printf("Commit Cancel! Finish receiving.\r\n");
+			set_speed_buffer(0);
+      set_receiving(0);
     }
-    else {
-			disable_SysTick();
-      printf("2:not commit, %d\n", speed_buffer);
-			enable_SysTick();
-			speed_buffer = 0;
-      recieving = 0;
-    }
-  }
-  else{
+  } else {
     switch (flag) {
-    case 14:recieving=1;break;
-    case 10:stop = 1;break;
-    case 11:stop = 0;break;
-    default:break;
+      case 14: set_receiving(1); break;
+      case 10: set_stop(1); break;
+      case 11: set_stop(0); break;
+      default: break;
     }
   }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	flag1 = 1;
+	set_flag1(1);
 }
 
 int fputc(int ch, FILE *f)
 { 
   uint8_t tmp[1]={0};
 	tmp[0] = (uint8_t)ch;
-	HAL_UART_Transmit(&huart1,tmp,1,10);	
+	HAL_UART_Transmit(&huart1,tmp,1,10000);	
 	return ch;
 }
-/* USER CODE END 4 */
+
+void print_data(void) {
+	printf("Here is our datas: \r\n");
+	printf("Current speed is %d \r\n", (int)get_speed());
+	printf("Score index is %d \r\n", (int)get_score_index());
+	if (get_stop() != 0) {
+		printf("Playing pause now \r\n");
+	} else {
+		printf("Playing will continue \r\n");
+	}
+}
+
+// HAL_delay 重写
+void HAL_delay(__IO uint32_t delay) {
+  uint32_t start = 0, end = 0;
+  uint32_t now = 0, past = 0;
+  uint32_t count = 0;
+  now = past = start = HAL_GetTick();
+  end = start + delay;
+  while( (end < start && (now >= start || now <= end)) || (start <= end && (now >= start && now <= end))) {
+    now = HAL_GetTick();
+    if (now == past) {
+      // 如果 now 在 10000 次循环后仍然没有变化
+      // 说明定时器出错
+      if (++count > 10000) Error_Handler(3);
+    } else {
+      past = now, count = 0;
+    }
+  }
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
   * @param  None
   * @retval None
   */
-void Error_Handler(void)
+void Error_Handler(int err)
 {
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
+  // TODO: 这里该写什么呢 ?
+  printf("\n\r!! Error Handler !!\r\n");
+  if (err == 1) {
+    printf("@ It looks like all backups of mdb broken!\r\n");
+  } else if (err == 2) {
+    printf("@ It looks like all backups of cdb broken!\r\n");
+  } else if (err == 3) {
+    printf("@ HAL_Delay timeout!\r\n");
+  } else {
+    printf("@ Receive an error code: %d!\r\n", err);
+  }
   while(1) 
   {
   }
@@ -341,17 +353,10 @@ void assert_failed(uint8_t* file, uint32_t line)
   /* User can add his own implementation to report the file name and line number,
     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
-
+  // TODO: 这里该加什么呢 ?
 }
 
 #endif
 
-/**
-  * @}
-  */ 
-
-/**
-  * @}
-*/ 
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

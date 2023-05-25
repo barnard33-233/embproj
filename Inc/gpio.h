@@ -50,7 +50,7 @@
 
 /* USER CODE END Private defines */
 
-extern void Error_Handler(void);
+extern void Error_Handler(int);
 
 void MX_GPIO_Init(void);
 
