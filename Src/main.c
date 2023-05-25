@@ -40,13 +40,12 @@
 #include "stdio.h"
 
 #include "const.h"
+#include "bak.h"
 
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
 #define SPEED_BUFFER_MAX 4
-
-uint16_t speed = 120;
 
 const struct Note score[SCORE_LENGTH] = {
 	{C4, NOTE4},
@@ -69,23 +68,8 @@ const struct Note score[SCORE_LENGTH] = {
 
 enum PITCH present_pitch = pause;
 enum DURATION present_du = NOTE1;
-
-uint32_t score_index = 0;
-uint32_t note_time = 0; // 当前音符的持续时间 (us)
-uint32_t music_timer = 0; // 用于音乐播放
-uint32_t event_timer = 0; // 用于设备的常规定时初始化
-uint8_t stop = 0;
-
-// ZLG7290 reading and writing
+uint32_t note_time = 0;
 uint8_t enable_music = 0;
-uint8_t flag = 0xff; // 用于保存键值对应的数字
-uint8_t flag1 = 0; // 中断标志位
-uint8_t Rx1_Buffer[1] = {0}; // 用于保存键值
-
-// change speed
-uint8_t recieving = 0; 
-uint16_t speed_buffer;
-uint8_t speed_index = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -94,46 +78,49 @@ void Error_Handler(void);
 void switch_key(void); // 将键值转化为对应的数字
 void switch_flag(void);
 void HAL_delay(__IO uint32_t delay);
+void print_data(void);
+void HAL_SYSTICK_Callback(void);
 
 __STATIC_INLINE void init_device(void);
-__STATIC_INLINE void disable_SysTick(void); 
-__STATIC_INLINE void enable_SysTick(void);
+//__STATIC_INLINE void disable_SysTick(void); 
+//__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
 
 int main(void)
 {
+
   /* MCU Configuration */
   init_device();
 
-  printf("\n\r-------------------------------------------------\r\n");
-  printf("\n\r Muti speed music player! \r\n");
-  printf("\n\r-------------------------------------------------\r\n");
+  printf("-------------------------------------------------\r\n");
+  printf(" Muti speed music player! \r\n");
+  printf("-------------------------------------------------\r\n");
+  print_data();
+	printf("-------------------------------------------------\r\n");
 
   /* Infinite loop */
   while (1)
   {
     enable_music = 1; // 开启定时事件: 音乐
-    if (event_timer >= 500000) {
-      // 定时事件 每 500 ms 刷新一次设备和引脚
+    if (get_flush_timer() >= 500000) {
+      // 定时事件 每 500 ms
+      reset_flush_timer();
+      // 刷新设备和引脚
       init_device();
     }
-    // TODO: 添加定时任务: 数据备份与恢复
-		if (flag1 == 1) {
-			flag1 = 0;
-      // TODO: 多读几次 跟之前的不同就进行处理
-			I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);
+		if (get_flag1() == 1) {
+      uint8_t tmp_rx1 = 0;
+			set_flag1(0);
+			I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
+      set_Rx1_Buffer(tmp_rx1);
 			switch_key(); // 更新 flag 的值
-			printf("Get keyvalue = %#x => flag = %d\r\n",Rx1_Buffer[0], flag);
+			printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
       switch_flag();
 		}
-		if(stop == 1) continue; // 按下 A 后关闭
-		if(present_pitch != pause){
-			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
-			HAL_Delay(present_pitch);
-			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
-			HAL_Delay(present_pitch);
-		}
-    if(music_timer >= note_time - note_time/32){
+		if(get_stop() == 1) continue; // 按下 A 后关闭
+    uint32_t music_timer = get_music_timer();
+		uint32_t score_index = get_score_index();
+		if(music_timer >= note_time - note_time/32){
       present_pitch = pause;
     }
     if(music_timer >= note_time){
@@ -143,6 +130,12 @@ int main(void)
       score_index = (score_index + 1) % SCORE_LENGTH;
       music_timer = 0;
     }
+		if(present_pitch != pause){
+			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
+			HAL_Delay(present_pitch);
+			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
+			HAL_Delay(present_pitch);
+		}
   }
 }
 
@@ -183,6 +176,7 @@ void SystemClock_Config(void)
 }
 
 __STATIC_INLINE void init_device(void) {
+  enable_music = 0;
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
   /* Configure the system clock */
@@ -191,9 +185,10 @@ __STATIC_INLINE void init_device(void) {
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
+  enable_music = 1;
 }
 
-__STATIC_INLINE void disable_SysTick(void) {
+/*__STATIC_INLINE void disable_SysTick(void) {
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    //SysTick_CTRL_TICKINT_Msk   |
                    0 |
@@ -203,75 +198,75 @@ __STATIC_INLINE void enable_SysTick(void) {
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |   
                    SysTick_CTRL_TICKINT_Msk   |
                    SysTick_CTRL_ENABLE_Msk;    
-}
+}*/
 
 uint32_t Du_to_us(enum DURATION du)
 {
-	return (1000000 * 60 * du) / (speed * NOTE4);
+	return (1000000 * 60 * du) / (get_speed() * NOTE4);
 }
 
 void HAL_SYSTICK_Callback(void) {
-  event_timer ++;
-  if (stop == 0 && enable_music == 1) music_timer ++;
+  plus_flush_timer();
+  if (get_stop() == 0 && enable_music == 1) plus_music_timer();
 }
 
 void switch_key(void) {
-  switch (Rx1_Buffer[0]) {
-    case 0x1c: flag = 1; break; // numbers
-		case 0x1b: flag = 2; break;
-		case 0x1a: flag = 3; break;
-		case 0x14: flag = 4; break;
-		case 0x13: flag = 5; break;
-		case 0x12: flag = 6; break;
-    case 0x0c: flag = 7; break;
-		case 0x0b: flag = 8; break;
-		case 0x0a: flag = 9; break;
-		case 0x03: flag = 0;break; // 0
-
-		case 0x19: flag = 10;break; // A
-		case 0x11: flag = 11;break; // B
-		case 0x09: flag = 12;break; // C
-		case 0x01: flag = 13;break; // D
-		case 0x02: flag = 14;break; // #
-		case 0x04: flag = 15;break; // *
+  switch (get_Rx1_Buffer()) {
+    case 0x1c: set_flag(1); break; // numbers
+		case 0x1b: set_flag(2); break;
+		case 0x1a: set_flag(3); break;
+		case 0x14: set_flag(4); break;
+		case 0x13: set_flag(5); break;
+		case 0x12: set_flag(6); break;
+    case 0x0c: set_flag(7); break;
+		case 0x0b: set_flag(8); break;
+		case 0x0a: set_flag(9); break;
+		case 0x03: set_flag(0); break; // 0
+		case 0x19: set_flag(10); break; // A
+		case 0x11: set_flag(11); break; // B
+		case 0x09: set_flag(12); break; // C
+		case 0x01: set_flag(13); break; // D
+		case 0x02: set_flag(14); break; // #
+		case 0x04: set_flag(15); break; // *
 		default: break;
   }
 }
 
 void switch_flag(void){
-  if(recieving){ // recieving user input.
-    if(flag <= 9){
-      speed_buffer = speed_buffer * 10 + flag;
-    }
-    else if(flag == 14){ // commit
+  uint8_t flag = get_flag();
+  if (get_receiving()) { // receiving user input.
+    uint16_t speed_buffer = get_speed_buffer();
+    if (flag <= 9) {
+      set_speed_buffer(speed_buffer * 10 + flag);
+      printf("Receiving... (%d)\r\n", speed_buffer);
+    } else if (flag == 14) { // commit
       if(speed_buffer <= 170 && speed_buffer >= 50){ // valid value
-        speed = speed_buffer;
-      } // else: do not commit
-      else{
-        printf("1:not commit, %d\n", speed_buffer);
+        set_speed(speed_buffer);
+        printf("Commit! Change speed to %d.\r\n", get_speed());
+      } else{
+        printf("Invalid value: %d.\r\n", speed_buffer);
       }
-			speed_buffer = 0;
-      recieving = 0;
+			set_speed_buffer(0);
+      set_receiving(0);
+      printf("Finish receiving!\r\n");
+    } else {
+      printf("Commit Cancel! Finish receiving.\r\n");
+			set_speed_buffer(0);
+      set_receiving(0);
     }
-    else {
-      printf("2:not commit, %d\n", speed_buffer);
-			speed_buffer = 0;
-      recieving = 0;
-    }
-  }
-  else{
+  } else {
     switch (flag) {
-    case 14:recieving=1;break;
-    case 10:stop = 1;break;
-    case 11:stop = 0;break;
-    default:break;
+      case 14: set_receiving(1); break;
+      case 10: set_stop(1); break;
+      case 11: set_stop(0); break;
+      default: break;
     }
   }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	flag1 = 1;
+	set_flag1(1);
 }
 
 int fputc(int ch, FILE *f)
@@ -280,6 +275,17 @@ int fputc(int ch, FILE *f)
 	tmp[0] = (uint8_t)ch;
 	HAL_UART_Transmit(&huart1,tmp,1,10000);	
 	return ch;
+}
+
+void print_data(void) {
+	printf("Here is our datas: \r\n");
+	printf("Current speed is %d \r\n", (int)get_speed());
+	printf("Score index is %d \r\n", (int)get_score_index());
+	if (get_stop() != 0) {
+		printf("Playing pause now \r\n");
+	} else {
+		printf("Playing will continue \r\n");
+	}
 }
 
 // HAL_delay 重写
