@@ -16,12 +16,12 @@ CDB __BACKUP_TWO__ cdb2;
 extern void Error_Handler(int err);
 
 uint32_t get_chksum_mdb(MDB *p) {
-  return (p->score_index << 24l) + (p->speed << 16l) + (p->stop << 8l) + 233l;
+  return (uint32_t)(p->score_index << 24lu) + (p->speed << 16lu) + (p->stop << 8lu) + 233lu;
 }
 uint32_t get_chksum_cdb(CDB *p) {
-  return 13l + (p->flag1 << 4l) \
-  + (p->flag << 8l) + (p->Rx1_Buffer << 12l) \
-  + (p->receiving << 20l) + (p->speed_buffer << 24l);
+  return (uint32_t)13lu + (p->flag1 << 4lu) \
+  + (p->flag << 8lu) + (p->Rx1_Buffer << 12lu) \
+  + (p->receiving << 20lu) + (p->speed_buffer << 24lu);
 }
 
 __STATIC_INLINE void init_mdb0(void) {
@@ -141,29 +141,22 @@ uint8_t get_stop(void) {
   return get_correct_mdb()->stop;
 }
 
+#define UPDATE_MDB(x) \
+  MDB *p = get_correct_mdb(); \
+  p->##x = _new; \
+  p->chksum = get_chksum_mdb(p); \
+  mdb0.##x = _new, mdb0.chksum = p->chksum; \
+  mdb1.##x = _new, mdb1.chksum = p->chksum; \
+  mdb2.##x = _new, mdb2.chksum = p->chksum;
+
 void set_speed(uint16_t _new) {
-  mdb0.chksum ^= mdb0.speed ^ _new;
-  mdb0.speed = _new;
-  mdb1.chksum ^= mdb1.speed ^ _new;
-  mdb1.speed = _new;
-  mdb2.chksum ^= mdb2.speed ^ _new;
-  mdb2.speed = _new;
+  UPDATE_MDB(speed);
 }
 void set_score_index(uint32_t _new) {
-  mdb0.chksum ^= mdb0.score_index ^ _new;
-  mdb0.score_index = _new;
-  mdb1.chksum ^= mdb1.score_index ^ _new;
-  mdb1.score_index = _new;
-  mdb2.chksum ^= mdb2.score_index ^ _new;
-  mdb2.score_index = _new;
+  UPDATE_MDB(score_index);
 }
 void set_stop(uint8_t _new) {
-  mdb0.chksum ^= mdb0.stop ^ _new;
-  mdb0.stop = _new;
-  mdb1.chksum ^= mdb1.stop ^ _new;
-  mdb1.stop = _new;
-  mdb2.chksum ^= mdb2.stop ^ _new;
-  mdb2.stop = _new;
+  UPDATE_MDB(stop);
 }
 
 // timer
@@ -223,43 +216,26 @@ uint16_t get_speed_buffer(void) {
   return get_correct_cdb()->speed_buffer;
 }
 
+#define UPDATE_CDB(x) \
+  CDB *p = get_correct_cdb(); \
+  p->##x = _new; \
+  p->chksum = get_chksum_cdb(p); \
+  cdb0.##x = _new, cdb0.chksum = p->chksum; \
+  cdb1.##x = _new, cdb1.chksum = p->chksum; \
+  cdb2.##x = _new, cdb2.chksum = p->chksum;
+
 void set_flag1(uint8_t _new) {
-  cdb0.chksum ^= cdb0.flag1 ^ _new;
-  cdb0.flag1 = _new;
-  cdb1.chksum ^= cdb1.flag1 ^ _new;
-  cdb1.flag1 = _new;
-  cdb2.chksum ^= cdb2.flag1 ^ _new;
-  cdb2.flag1 = _new;
+  UPDATE_CDB(flag1);
 }
 void set_Rx1_Buffer(uint8_t _new) {
-  cdb0.chksum ^= cdb0.Rx1_Buffer ^ _new;
-  cdb0.Rx1_Buffer = _new;
-  cdb1.chksum ^= cdb1.Rx1_Buffer ^ _new;
-  cdb1.Rx1_Buffer = _new;
-  cdb2.chksum ^= cdb2.Rx1_Buffer ^ _new;
-  cdb2.Rx1_Buffer = _new;
+  UPDATE_CDB(Rx1_Buffer);
 }
 void set_receiving(uint8_t _new) {
-  cdb0.chksum ^= cdb0.receiving ^ _new;
-  cdb0.receiving = _new;
-  cdb1.chksum ^= cdb1.receiving ^ _new;
-  cdb1.receiving = _new;
-  cdb2.chksum ^= cdb2.receiving ^ _new;
-  cdb2.receiving = _new;
+  UPDATE_CDB(receiving);
 }
 void set_flag(uint8_t _new) {
-  cdb0.chksum ^= cdb0.flag ^ _new;
-  cdb0.flag = _new;
-  cdb1.chksum ^= cdb1.flag ^ _new;
-  cdb1.flag = _new;
-  cdb2.chksum ^= cdb2.flag ^ _new;
-  cdb2.flag = _new;
+  UPDATE_CDB(flag);
 }
 void set_speed_buffer(uint16_t _new) {
-  cdb0.chksum ^= cdb0.speed_buffer ^ _new;
-  cdb0.speed_buffer = _new;
-  cdb1.chksum ^= cdb1.speed_buffer ^ _new;
-  cdb1.speed_buffer = _new;
-  cdb2.chksum ^= cdb2.speed_buffer ^ _new;
-  cdb2.speed_buffer = _new;
+  UPDATE_CDB(speed_buffer);
 }
