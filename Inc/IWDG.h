@@ -6,7 +6,7 @@
 // IWDG global variables
 extern IWDG_HandleTypeDef h_iwdg;
 
-extern void Error_Handler(void);
+extern void Error_Handler(int);
 
 void IWDG_Init(void);
 

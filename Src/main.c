@@ -333,7 +333,9 @@ void Error_Handler(int err)
     printf("@ It looks like all backups of cdb broken!\r\n");
   } else if (err == 3) {
     printf("@ HAL_Delay timeout!\r\n");
-  } else {
+  } else if (err == 4) {
+		printf("@ HAL_IWDG_Init failed!\r\n");
+	} else {
     printf("@ Receive an error code: %d!\r\n", err);
   }
   while(1) 
