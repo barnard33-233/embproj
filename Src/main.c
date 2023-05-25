@@ -124,6 +124,7 @@ int main(void)
 			printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
       switch_flag();
 		}
+    if (enable_music == 0) continue;
     // uint32_t music_timer = get_music_timer();
 		uint32_t score_index = get_score_index();
 		if(music_timer >= note_time - note_time/32){
