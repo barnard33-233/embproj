@@ -41,6 +41,7 @@
 
 #include "const.h"
 #include "bak.h"
+#include "IWDG.h"
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -143,6 +144,7 @@ int main(void)
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
 			HAL_Delay(present_pitch);
 		}
+    IWDG_Feed();
   }
 }
 
@@ -191,6 +193,8 @@ void init_device(void) {
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
+  // Init watch dag
+  IWDG_Init();
 }
 
 /*__STATIC_INLINE void disable_SysTick(void) {
