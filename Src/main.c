@@ -71,6 +71,9 @@ enum DURATION present_du = NOTE1;
 uint32_t note_time = 0;
 uint8_t enable_music = 0;
 
+uint32_t flush_timer = 0;
+uint32_t music_timer = 0;
+
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
@@ -103,9 +106,9 @@ int main(void)
   while (1)
   {
     enable_music = 1; // 开启定时事件: 音乐
-    if (get_flush_timer() >= 500000) {
+    if (flush_timer /*get_flush_timer()*/ >= 500000) {
       // 定时事件 每 500 ms
-      reset_flush_timer();
+      flush_timer = 0; // reset_flush_timer();
       // 刷新设备和引脚
       init_device();
     }
@@ -119,7 +122,7 @@ int main(void)
       switch_flag();
 		}
 		if(get_stop() == 1) continue; // 按下 A 后关闭
-    uint32_t music_timer = get_music_timer();
+    // uint32_t music_timer = get_music_timer();
 		uint32_t score_index = get_score_index();
 		if(music_timer >= note_time - note_time/32){
       present_pitch = pause;
@@ -205,8 +208,8 @@ uint32_t Du_to_us(enum DURATION du)
 }
 
 void HAL_SYSTICK_Callback(void) {
-  plus_flush_timer();
-  if (enable_music == 1 && get_stop() == 0) plus_music_timer();
+  flush_timer ++; // plus_flush_timer();
+  if (enable_music == 1 && get_stop() == 0) music_timer ++;
 }
 
 void switch_key(void) {

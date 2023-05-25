@@ -12,12 +12,12 @@ typedef struct {
 } BACKUP_MUSIC;
 
 // 定时事件计数器
-typedef struct {
-  uint32_t music_timer;
-  uint32_t flush_timer;
-  // uint32_t delay_timer;
-  uint8_t chksum;
-} BACKUP_TIMER;
+// typedef struct {
+//   uint32_t music_timer;
+//   uint32_t flush_timer;
+//   // uint32_t delay_timer;
+//   uint8_t chksum;
+// } BACKUP_TIMER;
 
 // 控制相关数据
 typedef struct {
@@ -30,7 +30,7 @@ typedef struct {
 } BACKUP_CONTROL;
 
 typedef BACKUP_MUSIC MDB;
-typedef BACKUP_TIMER TDB;
+// typedef BACKUP_TIMER TDB;
 typedef BACKUP_CONTROL CDB;
 
 #define XOR_CONST 0x32
@@ -44,7 +44,7 @@ void restore_data(void);
 
 MDB* get_correct_mdb(void);
 CDB* get_correct_cdb(void);
-TDB* get_correct_tdb(void);
+// TDB* get_correct_tdb(void);
 
 uint16_t get_speed(void);
 uint32_t get_score_index(void);
@@ -53,12 +53,12 @@ void set_speed(uint16_t _new);
 void set_score_index(uint32_t _new);
 void set_stop(uint8_t _new);
 
-uint32_t get_music_timer(void);
-uint32_t get_flush_timer(void);
-void reset_music_timer(void);
-void reset_flush_timer(void);
-void plus_music_timer(void);
-void plus_flush_timer(void);
+// uint32_t get_music_timer(void);
+// uint32_t get_flush_timer(void);
+// void reset_music_timer(void);
+// void reset_flush_timer(void);
+// void plus_music_timer(void);
+// void plus_flush_timer(void);
 
 uint8_t get_flag1(void);
 uint8_t get_Rx1_Buffer(void);
