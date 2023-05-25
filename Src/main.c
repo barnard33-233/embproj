@@ -131,7 +131,7 @@ int main(void)
       present_du = score[score_index].duration;
       present_pitch = score[score_index].pitch;
       note_time = Du_to_us(present_du);
-      score_index = (score_index + 1) % SCORE_LENGTH;
+      set_score_index((score_index + 1) % SCORE_LENGTH);
       music_timer = 0;
     }
 		if(present_pitch != pause){
