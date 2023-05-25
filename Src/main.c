@@ -80,8 +80,7 @@ void switch_flag(void);
 void HAL_delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
-
-__STATIC_INLINE void init_device(void);
+void init_device(void);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
@@ -177,8 +176,7 @@ void SystemClock_Config(void)
 
 }
 
-__STATIC_INLINE void init_device(void) {
-  enable_music = 0;
+void init_device(void) {
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
   /* Configure the system clock */
@@ -187,7 +185,6 @@ __STATIC_INLINE void init_device(void) {
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
-  enable_music = 1;
 }
 
 /*__STATIC_INLINE void disable_SysTick(void) {
@@ -209,7 +206,7 @@ uint32_t Du_to_us(enum DURATION du)
 
 void HAL_SYSTICK_Callback(void) {
   plus_flush_timer();
-  if (get_stop() == 0 && enable_music == 1) plus_music_timer();
+  if (enable_music == 1 && get_stop() == 0) plus_music_timer();
 }
 
 void switch_key(void) {
