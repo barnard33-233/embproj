@@ -90,6 +90,8 @@ int main(void)
 {
 
   /* MCU Configuration */
+  restore_data();
+
   init_device();
 
   printf("-------------------------------------------------\r\n");
