@@ -464,6 +464,11 @@
               <FileType>1</FileType>
               <FilePath>..\Drivers\STM32F4xx_HAL_Driver\Src\stm32f4xx_hal_i2c_ex.c</FilePath>
             </File>
+            <File>
+              <FileName>stm32f4xx_hal_iwdg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\STM32F4xx_HAL_Driver\Src\stm32f4xx_hal_iwdg.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -508,6 +513,11 @@
               <FileName>bak.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\bak.c</FilePath>
+            </File>
+            <File>
+              <FileName>IWDG.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\IWDG.c</FilePath>
             </File>
           </Files>
         </Group>
