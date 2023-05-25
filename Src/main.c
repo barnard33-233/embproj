@@ -77,7 +77,7 @@ uint32_t music_timer = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
-void Error_Handler(void);
+void Error_Handler(int err);
 void switch_key(void); // 将键值转化为对应的数字
 void switch_flag(void);
 void HAL_delay(__IO uint32_t delay);
@@ -111,6 +111,8 @@ int main(void)
       flush_timer = 0; // reset_flush_timer();
       // 刷新设备和引脚
       init_device();
+      // 同步所有备份数据
+      recover_backups();
     }
 		if (get_flag1() == 1) {
       uint8_t tmp_rx1 = 0;
@@ -302,7 +304,7 @@ void HAL_delay(__IO uint32_t delay) {
     if (now == past) {
       // 如果 now 在 10000 次循环后仍然没有变化
       // 说明定时器出错
-      if (++count > 10000) Error_Handler();
+      if (++count > 10000) Error_Handler(3);
     } else {
       past = now, count = 0;
     }
@@ -314,12 +316,21 @@ void HAL_delay(__IO uint32_t delay) {
   * @param  None
   * @retval None
   */
-void Error_Handler(void)
+void Error_Handler(int err)
 {
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
   // TODO: 这里该写什么呢 ?
-  printf("Something bad happen!\r\n");
+  printf("\n\r!! Error Handler !!\r\n");
+  if (err == 1) {
+    printf("@ It looks like all backups of mdb broken!\r\n");
+  } else if (err == 2) {
+    printf("@ It looks like all backups of cdb broken!\r\n");
+  } else if (err == 3) {
+    printf("@ HAL_Delay timeout!\r\n");
+  } else {
+    printf("@ Receive an error code: %d!\r\n", err);
+  }
   while(1) 
   {
   }
