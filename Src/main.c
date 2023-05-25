@@ -105,7 +105,8 @@ int main(void)
   /* Infinite loop */
   while (1)
   {
-    enable_music = 1; // 开启定时事件: 音乐
+    if (get_stop() == 1) enable_music = 0;
+    else enable_music = 1;
     if (flush_timer /*get_flush_timer()*/ >= 500000) {
       // 定时事件 每 500 ms
       flush_timer = 0; // reset_flush_timer();
@@ -123,7 +124,6 @@ int main(void)
 			printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
       switch_flag();
 		}
-		if(get_stop() == 1) continue; // 按下 A 后关闭
     // uint32_t music_timer = get_music_timer();
 		uint32_t score_index = get_score_index();
 		if(music_timer >= note_time - note_time/32){
@@ -211,7 +211,7 @@ uint32_t Du_to_us(enum DURATION du)
 
 void HAL_SYSTICK_Callback(void) {
   flush_timer ++; // plus_flush_timer();
-  if (enable_music == 1 && get_stop() == 0) music_timer ++;
+  if (enable_music == 1) music_timer ++;
 }
 
 void switch_key(void) {
