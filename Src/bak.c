@@ -74,15 +74,15 @@ void restore_data(void) {
 }
 
 MDB* get_correct_mdb(void) {
-  if (check_data((uint8_t *)&mdb0, sizeof(MDB))) {
+  if (check_data((uint8_t *)&mdb0, sizeof(MDB)) == 0) {
     mdb1 = mdb2 = mdb0;
     return &mdb0;
   }
-  if (check_data((uint8_t *)&mdb1, sizeof(MDB))) {
+  if (check_data((uint8_t *)&mdb1, sizeof(MDB)) == 0) {
     mdb0 = mdb2 = mdb1;
     return &mdb1;
   }
-  if (check_data((uint8_t *)&mdb2, sizeof(MDB))) {
+  if (check_data((uint8_t *)&mdb2, sizeof(MDB)) == 0) {
     mdb0 = mdb1 = mdb2;
     return &mdb2;
   }
@@ -91,15 +91,15 @@ MDB* get_correct_mdb(void) {
 }
 
 CDB* get_correct_cdb(void) {
-  if (check_data((uint8_t *)&cdb0, sizeof(CDB))) {
+  if (check_data((uint8_t *)&cdb0, sizeof(CDB)) == 0) {
     cdb1 = cdb2 = cdb0;
     return &cdb0;
   }
-  if (check_data((uint8_t *)&cdb1, sizeof(CDB))) {
+  if (check_data((uint8_t *)&cdb1, sizeof(CDB)) == 0) {
     cdb0 = cdb2 = cdb1;
     return &cdb1;
   }
-  if (check_data((uint8_t *)&cdb2, sizeof(CDB))) {
+  if (check_data((uint8_t *)&cdb2, sizeof(CDB)) == 0) {
     cdb0 = cdb1 = cdb2;
     return &cdb2;
   }
@@ -108,15 +108,15 @@ CDB* get_correct_cdb(void) {
 }
 
 TDB* get_correct_tdb(void) {
-  if (check_data((uint8_t *)&tdb0, sizeof(TDB))) {
+  if (check_data((uint8_t *)&tdb0, sizeof(TDB)) == 0) {
     tdb1 = tdb2 = tdb0;
     return &tdb0;
   }
-  if (check_data((uint8_t *)&tdb1, sizeof(TDB))) {
+  if (check_data((uint8_t *)&tdb1, sizeof(TDB)) == 0) {
     tdb0 = tdb2 = tdb1;
     return &tdb1;
   }
-  if (check_data((uint8_t *)&tdb2, sizeof(TDB))) {
+  if (check_data((uint8_t *)&tdb2, sizeof(TDB)) == 0) {
     tdb0 = tdb1 = tdb2;
     return &tdb2;
   }
