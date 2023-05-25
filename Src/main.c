@@ -243,7 +243,7 @@ void switch_flag(void){
     uint16_t speed_buffer = get_speed_buffer();
     if (flag <= 9) {
       set_speed_buffer(speed_buffer * 10 + flag);
-      printf("Receiving... (%d)\r\n", speed_buffer);
+      printf("Receiving... (%d)\r\n", speed_buffer * 10 + flag);
     } else if (flag == 14) { // commit
       if(speed_buffer <= 170 && speed_buffer >= 50){ // valid value
         set_speed(speed_buffer);
