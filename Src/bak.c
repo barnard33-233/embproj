@@ -13,19 +13,22 @@ CDB cdb0;
 CDB __BACKUP_ONE__ cdb1;
 CDB __BACKUP_TWO__ cdb2;
 
-extern void Error_Handler(void);
+extern void Error_Handler(int err);
 
-uint8_t check_data(uint8_t *p, int len) {
-  uint8_t sum = XOR_CONST;
-  while (len--) sum ^= *p, p++;
-  return sum;
+uint32_t get_chksum_mdb(MDB *p) {
+  return (p->score_index << 24l) + (p->speed << 16l) + (p->stop << 8l) + 233l;
+}
+uint32_t get_chksum_cdb(CDB *p) {
+  return 13l + (p->flag1 << 4l) \
+  + (p->flag << 8l) + (p->Rx1_Buffer << 12l) \
+  + (p->receiving << 20l) + (p->speed_buffer << 24l);
 }
 
 __STATIC_INLINE void init_mdb0(void) {
   mdb0.speed = 120;
   mdb0.score_index = 0;
   mdb0.stop = 0;
-  mdb0.chksum = check_data((uint8_t *)&mdb0, sizeof(MDB) - 1);
+  mdb0.chksum = get_chksum_mdb(&mdb0);
 }
 
 // __STATIC_INLINE void init_tdb0(void) {
@@ -40,14 +43,14 @@ __STATIC_INLINE void init_cdb0(void) {
   cdb0.receiving = 0;
   cdb0.flag = 0xff;
   cdb0.speed_buffer = 0;
-  cdb0.chksum = check_data((uint8_t *)&cdb0, sizeof(CDB) - 1);
+  cdb0.chksum = get_chksum_cdb(&cdb0);
 }
 
 void restore_data(void) {
   // restore music data
-  if (check_data((uint8_t *)&mdb1, sizeof(MDB)) == 0) {
+  if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
     mdb0 = mdb2 = mdb1;
-  } else if (check_data((uint8_t *)&mdb2, sizeof(MDB)) == 0) {
+  } else if (get_chksum_mdb(&mdb2) == mdb2.chksum) {
     mdb0 = mdb1 = mdb2;
   } else {
     init_mdb0();
@@ -63,9 +66,9 @@ void restore_data(void) {
   //   tdb1 = tdb2 = tdb0;
   // }
   // restore control data
-  if (check_data((uint8_t *)&cdb1, sizeof(CDB)) == 0) {
+  if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
     cdb0 = cdb2 = cdb1;
-  } else if (check_data((uint8_t *)&cdb2, sizeof(CDB)) == 0) {
+  } else if (get_chksum_cdb(&cdb2) == cdb2.chksum) {
     cdb0 = cdb1 = cdb2;
   } else {
     init_cdb0();
@@ -73,37 +76,40 @@ void restore_data(void) {
   }
 }
 
-MDB* get_correct_mdb(void) {
-  if (check_data((uint8_t *)&mdb0, sizeof(MDB)) == 0) {
+void recover_backups(void) {
+  if (get_chksum_mdb(&mdb0) == mdb0.chksum) {
     mdb1 = mdb2 = mdb0;
-    return &mdb0;
-  }
-  if (check_data((uint8_t *)&mdb1, sizeof(MDB)) == 0) {
+  } else if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
     mdb0 = mdb2 = mdb1;
-    return &mdb1;
-  }
-  if (check_data((uint8_t *)&mdb2, sizeof(MDB)) == 0) {
+  } else if (get_chksum_mdb(&mdb2) == mdb2.chksum) {
     mdb0 = mdb1 = mdb2;
-    return &mdb2;
+  } else {
+    Error_Handler(1);
   }
-  Error_Handler();
+  if (get_chksum_cdb(&cdb0) == cdb0.chksum) {
+    cdb1 = cdb2 = cdb0;
+  } else if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
+    cdb0 = cdb2 = cdb1;
+  } else if (get_chksum_cdb(&cdb2) == cdb2.chksum) {
+    cdb0 = cdb1 = cdb2;
+  } else {
+    Error_Handler(2);
+  }
+}
+
+MDB* get_correct_mdb(void) {
+  if (get_chksum_mdb(&mdb0) == mdb0.chksum) return &mdb0;
+  if (get_chksum_mdb(&mdb1) == mdb1.chksum) return &mdb1;
+  if (get_chksum_mdb(&mdb2) == mdb2.chksum) return &mdb2;
+  Error_Handler(1);
   return NULL;
 }
 
 CDB* get_correct_cdb(void) {
-  if (check_data((uint8_t *)&cdb0, sizeof(CDB)) == 0) {
-    cdb1 = cdb2 = cdb0;
-    return &cdb0;
-  }
-  if (check_data((uint8_t *)&cdb1, sizeof(CDB)) == 0) {
-    cdb0 = cdb2 = cdb1;
-    return &cdb1;
-  }
-  if (check_data((uint8_t *)&cdb2, sizeof(CDB)) == 0) {
-    cdb0 = cdb1 = cdb2;
-    return &cdb2;
-  }
-  Error_Handler();
+  if (get_chksum_cdb(&cdb0) == cdb0.chksum) return &cdb0;
+  if (get_chksum_cdb(&cdb1) == cdb1.chksum) return &cdb1;
+  if (get_chksum_cdb(&cdb2) == cdb2.chksum) return &cdb2;
+  Error_Handler(2);
   return NULL;
 }
 

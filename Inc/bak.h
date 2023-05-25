@@ -8,7 +8,7 @@ typedef struct {
   uint16_t speed;
   uint32_t score_index;
   uint8_t stop;
-  uint8_t chksum;
+  uint32_t chksum;
 } BACKUP_MUSIC;
 
 // 定时事件计数器
@@ -26,21 +26,18 @@ typedef struct {
   uint8_t receiving;
   uint8_t flag; 
   uint16_t speed_buffer;
-  uint8_t chksum;
+  uint32_t chksum;
 } BACKUP_CONTROL;
 
 typedef BACKUP_MUSIC MDB;
 // typedef BACKUP_TIMER TDB;
 typedef BACKUP_CONTROL CDB;
 
-#define XOR_CONST 0x32
-
 #define __BACKUP_ONE__ __attribute__((section("BACKUP_ONE"), zero_init))
 #define __BACKUP_TWO__ __attribute__((section("BACKUP_TWO"), zero_init))
 
-uint8_t check_data(uint8_t *p, int len);
-
 void restore_data(void);
+void recover_backups(void);
 
 MDB* get_correct_mdb(void);
 CDB* get_correct_cdb(void);
