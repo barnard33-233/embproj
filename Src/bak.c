@@ -29,16 +29,16 @@ __STATIC_INLINE void init_mdb0(void) {
 }
 
 __STATIC_INLINE void init_tdb0(void) {
-  tb0.music_timer = 0;
-  tb0.fflush_timer = 0;
+  tdb0.music_timer = 0;
+  tdb0.flush_timer = 0;
   tdb0.chksum = check_data((uint8_t *)&tdb0, sizeof(TDB) - 1);
 }
 
 __STATIC_INLINE void init_cdb0(void) {
   cdb0.flag1 = 0;
-  cdb0.Rx1_Buffer[0] = 0;
+  cdb0.Rx1_Buffer = 0;
   cdb0.receiving = 0;
-  cdb0.flag = 0;
+  cdb0.flag = 0xff;
   cdb0.speed_buffer = 0;
   cdb0.chksum = check_data((uint8_t *)&cdb0, sizeof(CDB) - 1);
 }
@@ -85,7 +85,7 @@ MDB* get_correct_mdb(void) {
   if (check_data((uint8_t *)&mdb2, sizeof(MDB))) {
     mdb0 = mdb1 = mdb2;
     return &mdb2;
-  }s
+  }
   Error_Handler();
   return NULL;
 }
@@ -137,29 +137,29 @@ uint8_t get_stop(void) {
   return get_correct_mdb()->stop;
 }
 
-void set_speed(uint16_t _old, uint16_t _new) {
+void set_speed(uint16_t _new) {
+  mdb0.chksum ^= mdb0.speed ^ _new;
   mdb0.speed = _new;
-  mdb0.chksum ^= _old ^ _new;
+  mdb1.chksum ^= mdb1.speed ^ _new;
   mdb1.speed = _new;
-  mdb1.chksum ^= _old ^ _new;
+  mdb2.chksum ^= mdb2.speed ^ _new;
   mdb2.speed = _new;
-  mdb2.chksum ^= _old ^ _new;
 }
-void set_score_index(uint32_t _old, uint32_t _new) {
+void set_score_index(uint32_t _new) {
+  mdb0.chksum ^= mdb0.score_index ^ _new;
   mdb0.score_index = _new;
-  mdb0.chksum ^= _old ^ _new;
+  mdb1.chksum ^= mdb1.score_index ^ _new;
   mdb1.score_index = _new;
-  mdb1.chksum ^= _old ^ _new;
+  mdb2.chksum ^= mdb2.score_index ^ _new;
   mdb2.score_index = _new;
-  mdb2.chksum ^= _old ^ _new;
 }
-void set_stop(uint8_t _old, uint8_t _new) {
+void set_stop(uint8_t _new) {
+  mdb0.chksum ^= mdb0.stop ^ _new;
   mdb0.stop = _new;
-  mdb0.chksum ^= _old ^ _new;
+  mdb1.chksum ^= mdb1.stop ^ _new;
   mdb1.stop = _new;
-  mdb1.chksum ^= _old ^ _new;
+  mdb2.chksum ^= mdb2.stop ^ _new;
   mdb2.stop = _new;
-  mdb2.chksum ^= _old ^ _new;
 }
 
 // timer
@@ -169,22 +169,37 @@ uint32_t get_music_timer(void) {
 uint32_t get_flush_timer(void) {
   return get_correct_tdb()->flush_timer;
 }
-
-void set_music_timer(uint32_t _old, uint32_t _new) {
-  tdb0.music_timer = _new;
-  tdb0.chksum ^= _old ^ _new;
-  tdb1.music_timer = _new;
-  tdb1.chksum ^= _old ^ _new;
-  tdb2.music_timer = _new;
-  tdb2.chksum ^= _old ^ _new;
+void reset_music_timer(void) {
+  tdb0.chksum ^= tdb0.music_timer;
+  tdb0.music_timer = 0;
+  tdb1.chksum ^= tdb1.music_timer;
+  tdb1.music_timer = 0;
+  tdb2.chksum ^= tdb2.music_timer;
+  tdb2.music_timer = 0;
 }
-void set_flush_timer(uint32_t _old, uint32_t _new) {
-  tdb0.flush_timer = _new;
-  tdb0.chksum ^= _old ^ _new;
-  tdb1.flush_timer = _new;
-  tdb1.chksum ^= _old ^ _new;
-  tdb2.flush_timer = _new;
-  tdb2.chksum ^= _old ^ _new;
+void reset_flush_timer(void) {
+  tdb0.chksum ^= tdb0.flush_timer;
+  tdb0.flush_timer = 0;
+  tdb1.chksum ^= tdb1.flush_timer;
+  tdb1.flush_timer = 0;
+  tdb2.chksum ^= tdb2.flush_timer;
+  tdb2.flush_timer = 0;
+}
+void plus_music_timer(void) {
+  tdb0.chksum ^= tdb0.music_timer ^ (tdb0.music_timer + 1);
+  tdb0.music_timer++;
+  tdb1.chksum ^= tdb1.music_timer ^ (tdb1.music_timer + 1);
+  tdb1.music_timer++;
+  tdb2.chksum ^= tdb2.music_timer ^ (tdb2.music_timer + 1);
+  tdb2.music_timer++;
+}
+void plus_flush_timer(void) {
+  tdb0.chksum ^= tdb0.flush_timer ^ (tdb0.flush_timer + 1);
+  tdb0.flush_timer++;
+  tdb1.chksum ^= tdb1.flush_timer ^ (tdb1.flush_timer + 1);
+  tdb1.flush_timer++;
+  tdb2.chksum ^= tdb2.flush_timer ^ (tdb2.flush_timer + 1);
+  tdb2.flush_timer++;
 }
 
 // control
@@ -197,39 +212,50 @@ uint8_t get_Rx1_Buffer(void) {
 uint8_t get_receiving(void) {
   return get_correct_cdb()->receiving;
 }
+uint8_t get_flag(void) {
+  return get_correct_cdb()->flag;
+}
 uint16_t get_speed_buffer(void) {
   return get_correct_cdb()->speed_buffer;
 }
 
-void set_flag1(uint8_t _old, uint8_t _new) {
+void set_flag1(uint8_t _new) {
+  cdb0.chksum ^= cdb0.flag1 ^ _new;
   cdb0.flag1 = _new;
-  cdb0.chksum ^= _old ^ _new;
+  cdb1.chksum ^= cdb1.flag1 ^ _new;
   cdb1.flag1 = _new;
-  cdb1.chksum ^= _old ^ _new;
+  cdb2.chksum ^= cdb2.flag1 ^ _new;
   cdb2.flag1 = _new;
-  cdb2.chksum ^= _old ^ _new;
 }
-void set_Rx1_Buffer(uint8_t _old, uint8_t _new) {
+void set_Rx1_Buffer(uint8_t _new) {
+  cdb0.chksum ^= cdb0.Rx1_Buffer ^ _new;
   cdb0.Rx1_Buffer = _new;
-  cdb0.chksum ^= _old ^ _new;
+  cdb1.chksum ^= cdb1.Rx1_Buffer ^ _new;
   cdb1.Rx1_Buffer = _new;
-  cdb1.chksum ^= _old ^ _new;
+  cdb2.chksum ^= cdb2.Rx1_Buffer ^ _new;
   cdb2.Rx1_Buffer = _new;
-  cdb2.chksum ^= _old ^ _new;
 }
-void set_receiving(uint8_t _old, uint8_t _new) {
+void set_receiving(uint8_t _new) {
+  cdb0.chksum ^= cdb0.receiving ^ _new;
   cdb0.receiving = _new;
-  cdb0.chksum ^= _old ^ _new;
+  cdb1.chksum ^= cdb1.receiving ^ _new;
   cdb1.receiving = _new;
-  cdb1.chksum ^= _old ^ _new;
+  cdb2.chksum ^= cdb2.receiving ^ _new;
   cdb2.receiving = _new;
-  cdb2.chksum ^= _old ^ _new;
 }
-void set_speed_buffer(uint8_t _old, uint8_t _new) {
+void set_flag(uint8_t _new) {
+  cdb0.chksum ^= cdb0.flag ^ _new;
+  cdb0.flag = _new;
+  cdb1.chksum ^= cdb1.flag ^ _new;
+  cdb1.flag = _new;
+  cdb2.chksum ^= cdb2.flag ^ _new;
+  cdb2.flag = _new;
+}
+void set_speed_buffer(uint16_t _new) {
+  cdb0.chksum ^= cdb0.speed_buffer ^ _new;
   cdb0.speed_buffer = _new;
-  cdb0.chksum ^= _old ^ _new;
+  cdb1.chksum ^= cdb1.speed_buffer ^ _new;
   cdb1.speed_buffer = _new;
-  cdb1.chksum ^= _old ^ _new;
+  cdb2.chksum ^= cdb2.speed_buffer ^ _new;
   cdb2.speed_buffer = _new;
-  cdb2.chksum ^= _old ^ _new;
 }
