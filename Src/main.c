@@ -48,7 +48,7 @@
 
 #define SCORE_LENGTH 14
 #define SPEED_BUFFER_MAX 4
-#define MAX_FLAG1 5 // 开始输入，输入内容，停止输入，最长是5.
+#define MAX_FLAG1 3 // 开始输入，输入内容，停止输入，最长是5.
 
 const struct Note score[SCORE_LENGTH] = {
 	{C4, NOTE4},
@@ -90,6 +90,7 @@ void print_data(void);
 void HAL_SYSTICK_Callback(void);
 void init_device(int);
 void loop_delay(int time);
+void init_buttons();
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
@@ -124,7 +125,10 @@ int main(void)
       recover_backups();
       IWDG_Feed();
     }
-		if (get_flag1() == 1) {
+		if (get_flag1() >= 1) {
+      if(get_flag1() >= MAX_FLAG1){
+        init_buttons();
+      }
       uint8_t tmp_rx1 = 0;
 			set_flag1(0);
       comp_flag = 0; // 序列完整性标志
@@ -136,6 +140,8 @@ int main(void)
       IWDG_Feed();
 
 			switch_key(); // 更新 flag 的值
+      // random delay
+      loop_delay(rand() % 100);
       comp_flag ++;
       if (comp_flag == 3) { 
         printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
@@ -225,6 +231,23 @@ void init_device(int hot) {
   MX_USART1_UART_Init();
   // Init watch dag
   IWDG_Init();
+}
+
+void init_buttons(){
+  __GPIOD_CLK_ENABLE(); // 按键
+  __GPIOB_CLK_ENABLE(); // i2c
+
+  /*Configure GPIO pin : PD13 */ // button
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /* EXTI interrupt init */ // button
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
+  MX_I2C1_Init();
 }
 
 /*__STATIC_INLINE void disable_SysTick(void) {
