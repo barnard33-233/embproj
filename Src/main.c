@@ -73,6 +73,8 @@ enum DURATION present_du = NOTE1;
 uint32_t note_time = 0;
 uint8_t enable_music = 0;
 
+int comp_flag;
+
 uint32_t flush_timer = 0;
 uint32_t music_timer = 0;
 
@@ -98,6 +100,7 @@ int main(void)
 
   init_device(hot);
 
+  if (hot == 1) printf("A hot booting... \r\n");
   printf("-------------------------------------------------\r\n");
   printf(" Muti speed music player! \r\n");
   printf("-------------------------------------------------\r\n");
@@ -120,15 +123,24 @@ int main(void)
 		if (get_flag1() == 1) {
       uint8_t tmp_rx1 = 0;
 			set_flag1(0);
+      comp_flag = 0; // 序列完整性标志
       IWDG_Feed();
 			I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
+      comp_flag ++;
       set_Rx1_Buffer(tmp_rx1);
+      comp_flag ++;
       IWDG_Feed();
 
 			switch_key(); // 更新 flag 的值
-			printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
-      switch_flag();
-      IWDG_Feed();
+      comp_flag ++;
+      if (comp_flag == 3) { 
+        printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
+        switch_flag();
+        IWDG_Feed();
+      } else {
+        // 不等于 3 意味着攻击者跳过了前面的语句
+        printf("You may under an attack. Input Abort.\r\n");
+      }
 		}
     if (enable_music == 0) continue;
     // uint32_t music_timer = get_music_timer();
@@ -139,6 +151,13 @@ int main(void)
     if(music_timer >= note_time){
       present_du = score[score_index].duration;
       present_pitch = score[score_index].pitch;
+      uint16_t tmp_speed = get_speed();
+      if (tmp_speed < 50 || tmp_speed > 170) {
+        printf("Bad speed value. You may under an attack.\r\n");
+        printf("Reset speed to 120.\r\n");
+        set_speed(120);
+        IWDG_Feed();
+      }
       note_time = Du_to_us(present_du);
       set_score_index((score_index + 1) % SCORE_LENGTH);
       music_timer = 0;
