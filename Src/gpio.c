@@ -34,16 +34,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "gpio.h"
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/
 /* Configure GPIO                                                             */
 /*----------------------------------------------------------------------------*/
-/* USER CODE BEGIN 1 */
-
-/* USER CODE END 1 */
 
 /** Configure pins as 
         * Analog 
@@ -78,14 +72,35 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /* EXTI interrupt init */
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0); // 键盘触发外部中断
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
-/* USER CODE BEGIN 2 */
+void GPIO_Init_Keyboard(void) {
+  GPIO_InitTypeDef GPIO_InitStruct;
+  __GPIOD_CLK_ENABLE(); // keyboard
+  __GPIOB_CLK_ENABLE(); // i2c
+  /*Configure GPIO pin : PD13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  /* EXTI interrupt init */
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0); // 键盘触发外部中断
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+}
 
-/* USER CODE END 2 */
+void GPIO_Init_Beep(void) {
+  GPIO_InitTypeDef GPIO_InitStruct;
+  __GPIOG_CLK_ENABLE();
+  /*Configure GPIO pin : PG6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+}
 
 /**
   * @}

@@ -48,6 +48,7 @@
 
 #define SCORE_LENGTH 14
 #define SPEED_BUFFER_MAX 4
+#define MAX_FLAG1 3 // 开始输入，输入内容，停止输入，最长是5.
 
 const struct Note score[SCORE_LENGTH] = {
 	{C4, NOTE4},
@@ -88,89 +89,136 @@ void HAL_delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
 void init_device(int);
+void loop_delay(int time);
+void init_keyboard(void);
+void init_beep(void);
+void init_uart(void);
+
+void module_TimeEvent(void);
+void module_Input(void);
+void module_Music(void);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
+
+// 定时事件模块
+void module_TimeEvent(void) {
+  if (get_stop() == 1) enable_music = 0;
+  else enable_music = 1;
+  if (flush_timer /*get_flush_timer()*/ >= 80000) {
+    // 定时事件 每 80 ms
+    flush_timer = 0; // reset_flush_timer();
+    // 同步所有备份数据
+    IWDG_Feed();
+    recover_backups();
+    init_beep();
+  }
+}
+
+// 按键处理模块
+void module_Input(void) {
+  if (get_flag1() >= 1) {
+    if(get_flag1() >= MAX_FLAG1) { // 输入滤波
+      IWDG_Feed();
+      init_keyboard();
+    }
+    uint8_t tmp_rx1 = 0;
+    set_flag1(0);
+    comp_flag = 0; // 序列完整性标志
+    IWDG_Feed();
+    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
+    set_Rx1_Buffer(tmp_rx1);
+    comp_flag |= 1;
+    IWDG_Feed();
+    switch_key(); // 更新 flag 的值
+    comp_flag |= 2;
+    // 在输入与处理间添加随机时延
+    loop_delay(rand() % 100);
+    if (comp_flag == 3) { 
+      IWDG_Feed();
+      printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
+      IWDG_Feed();
+      switch_flag();
+    } else {
+      // 不等于 3 意味着攻击者跳过了前面的语句
+      IWDG_Feed();
+      printf("You may under an attack. Input Abort.\r\n");
+    }
+  }
+}
+
+void module_Music(void) {
+  // 音符播放模块
+  if (enable_music == 0) return;
+  IWDG_Feed();
+  uint32_t score_index = get_score_index();
+  if(music_timer >= note_time - note_time/32){
+    present_pitch = pause;
+  }
+  if(music_timer >= note_time){
+    present_du = score[score_index].duration;
+    present_pitch = score[score_index].pitch;
+    uint16_t tmp_speed = get_speed();
+    if (tmp_speed < 50 || tmp_speed > 170) {
+      // 速度复原
+      IWDG_Feed();
+      printf("Bad speed value. You may under an attack.\r\n");
+      printf("Reset speed to 120.\r\n");
+      set_speed(120);
+    }
+    // 写入音符信息
+    IWDG_Feed();
+    note_time = Du_to_us(present_du);
+    set_score_index((score_index + 1) % SCORE_LENGTH);
+    music_timer = 0;
+  }
+  if(present_pitch != pause){
+    IWDG_Feed();
+    HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
+    HAL_Delay(present_pitch);
+    IWDG_Feed();
+    HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
+    HAL_Delay(present_pitch);
+  }
+}
 
 int main(void)
 {
 
   /* MCU Configuration */
   int hot = restore_data();
+  // delay when cold boot
+  if (hot == 0) loop_delay(1000);
 
   init_device(hot);
 
+  IWDG_Feed();
   if (hot == 1) printf("A hot booting... \r\n");
   printf("-------------------------------------------------\r\n");
   printf(" Muti speed music player! \r\n");
   printf("-------------------------------------------------\r\n");
+  IWDG_Feed();
   print_data();
 	printf("-------------------------------------------------\r\n");
-  IWDG_Feed();
 
   /* Infinite loop */
   while (1)
   {
-    if (get_stop() == 1) enable_music = 0;
-    else enable_music = 1;
-    if (flush_timer /*get_flush_timer()*/ >= 500000) {
-      // 定时事件 每 500 ms
-      flush_timer = 0; // reset_flush_timer();
-      // 同步所有备份数据
-      recover_backups();
-      IWDG_Feed();
-    }
-		if (get_flag1() == 1) {
-      uint8_t tmp_rx1 = 0;
-			set_flag1(0);
-      comp_flag = 0; // 序列完整性标志
-      IWDG_Feed();
-			I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
-      comp_flag ++;
-      set_Rx1_Buffer(tmp_rx1);
-      comp_flag ++;
-      IWDG_Feed();
-
-			switch_key(); // 更新 flag 的值
-      comp_flag ++;
-      if (comp_flag == 3) { 
-        printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
-        switch_flag();
-        IWDG_Feed();
-      } else {
-        // 不等于 3 意味着攻击者跳过了前面的语句
-        printf("You may under an attack. Input Abort.\r\n");
-      }
-		}
-    if (enable_music == 0) continue;
-    // uint32_t music_timer = get_music_timer();
-		uint32_t score_index = get_score_index();
-		if(music_timer >= note_time - note_time/32){
-      present_pitch = pause;
-    }
-    if(music_timer >= note_time){
-      present_du = score[score_index].duration;
-      present_pitch = score[score_index].pitch;
-      uint16_t tmp_speed = get_speed();
-      if (tmp_speed < 50 || tmp_speed > 170) {
-        printf("Bad speed value. You may under an attack.\r\n");
-        printf("Reset speed to 120.\r\n");
-        set_speed(120);
-        IWDG_Feed();
-      }
-      note_time = Du_to_us(present_du);
-      set_score_index((score_index + 1) % SCORE_LENGTH);
-      music_timer = 0;
-    }
     IWDG_Feed();
-		if(present_pitch != pause){
-			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
-			HAL_Delay(present_pitch);
-      IWDG_Feed();
-			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
-			HAL_Delay(present_pitch);
-		}
-    IWDG_Feed();
+		int t = rand() % 3;
+    if (t == 0) {
+      module_TimeEvent();
+      module_Input();
+      module_Music();
+    } else if (t == 1) {
+      module_Input();
+      module_Music();
+      module_TimeEvent();
+    } else {
+      module_Music();
+      module_TimeEvent();
+      module_Input();
+    }
   }
 }
 
@@ -215,14 +263,26 @@ void init_device(int hot) {
   HAL_Init();
   /* Configure the system clock */
   SystemClock_Config();
-  // wait 100ms when cold boot
-  if (hot == 0) HAL_delay(100000);
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   // Init watch dag
   IWDG_Init();
+}
+
+void init_keyboard(void) {
+  GPIO_Init_Keyboard();
+  MX_I2C1_Init();
+}
+
+void init_beep(void) {
+  GPIO_Init_Beep();
+}
+
+void init_uart(void) {
+  __GPIOA_CLK_ENABLE();
+  MX_USART1_UART_Init();
 }
 
 /*__STATIC_INLINE void disable_SysTick(void) {
@@ -303,20 +363,25 @@ void switch_flag(void){
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	set_flag1(1);
+	set_flag1(get_flag1() + 1); // if flag 1 reaches TODO, the zlg7290 and it's port should be refreshed.
 }
 
 int fputc(int ch, FILE *f)
 { 
-  uint8_t tmp[1]={0};
+  uint8_t tmp[1]={0}, c = 0;
 	tmp[0] = (uint8_t)ch;
-	HAL_UART_Transmit(&huart1,tmp,1,10000);	
+	while (HAL_OK != HAL_UART_Transmit(&huart1, tmp, 1, 10000)) {
+    c++;
+    if (c == 2) init_uart();
+    else if (c >= 4) Error_Handler(0);
+  }	
 	return ch;
 }
 
 void print_data(void) {
 	printf("Here is our datas: \r\n");
 	printf("Current speed is %d \r\n", (int)get_speed());
+  IWDG_Feed();
 	printf("Score index is %d \r\n", (int)get_score_index());
 	if (get_stop() != 0) {
 		printf("Playing pause now \r\n");
@@ -333,15 +398,23 @@ void HAL_delay(__IO uint32_t delay) {
   now = past = start = HAL_GetTick();
   end = start + delay;
   while( (end < start && (now >= start || now <= end)) || (start <= end && (now >= start && now <= end))) {
+    // feed IWDG
+    IWDG_Feed();
+    // 进入休眠模式
+    HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI); // TODO: test
     now = HAL_GetTick();
     if (now == past) {
-      // 如果 now 在 10000 次循环后仍然没有变化
+      // 如果 now 在 20 次循环后仍然没有变化
       // 说明定时器出错
-      if (++count > 10000) Error_Handler(3);
+      if (++count > 20) Error_Handler(3);
     } else {
       past = now, count = 0;
     }
   }
+}
+
+void loop_delay(int time){
+  while(time--);
 }
 
 /**
@@ -354,6 +427,7 @@ void Error_Handler(int err)
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
   // TODO: 这里该写什么呢 ?
+  IWDG_Feed();
   printf("\n\r!! Error Handler !!\r\n");
   if (err == 1) {
     printf("@ It looks like all backups of mdb broken!\r\n");
@@ -366,9 +440,7 @@ void Error_Handler(int err)
 	} else {
     printf("@ Receive an error code: %d!\r\n", err);
   }
-  while(1) 
-  {
-  }
+  while(1);
   /* USER CODE END Error_Handler */ 
 }
 
