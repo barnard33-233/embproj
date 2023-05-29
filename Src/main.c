@@ -38,6 +38,7 @@
 
 #include "zlg7290.h"
 #include "stdio.h"
+#include "stdlib.h"
 
 #include "const.h"
 #include "bak.h"
@@ -72,6 +73,8 @@ enum DURATION present_du = NOTE1;
 uint32_t note_time = 0;
 uint8_t enable_music = 0;
 
+int comp_flag;
+
 uint32_t flush_timer = 0;
 uint32_t music_timer = 0;
 
@@ -84,7 +87,7 @@ void switch_flag(void);
 void HAL_delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
-void init_device(void);
+void init_device(int);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
@@ -93,15 +96,17 @@ int main(void)
 {
 
   /* MCU Configuration */
-  restore_data();
+  int hot = restore_data();
 
-  init_device();
+  init_device(hot);
 
+  if (hot == 1) printf("A hot booting... \r\n");
   printf("-------------------------------------------------\r\n");
   printf(" Muti speed music player! \r\n");
   printf("-------------------------------------------------\r\n");
   print_data();
 	printf("-------------------------------------------------\r\n");
+  IWDG_Feed();
 
   /* Infinite loop */
   while (1)
@@ -111,19 +116,31 @@ int main(void)
     if (flush_timer /*get_flush_timer()*/ >= 500000) {
       // 定时事件 每 500 ms
       flush_timer = 0; // reset_flush_timer();
-      // 刷新设备和引脚
-      init_device();
       // 同步所有备份数据
       recover_backups();
+      IWDG_Feed();
     }
 		if (get_flag1() == 1) {
       uint8_t tmp_rx1 = 0;
 			set_flag1(0);
+      comp_flag = 0; // 序列完整性标志
+      IWDG_Feed();
 			I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
+      comp_flag ++;
       set_Rx1_Buffer(tmp_rx1);
+      comp_flag ++;
+      IWDG_Feed();
+
 			switch_key(); // 更新 flag 的值
-			printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
-      switch_flag();
+      comp_flag ++;
+      if (comp_flag == 3) { 
+        printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
+        switch_flag();
+        IWDG_Feed();
+      } else {
+        // 不等于 3 意味着攻击者跳过了前面的语句
+        printf("You may under an attack. Input Abort.\r\n");
+      }
 		}
     if (enable_music == 0) continue;
     // uint32_t music_timer = get_music_timer();
@@ -134,13 +151,22 @@ int main(void)
     if(music_timer >= note_time){
       present_du = score[score_index].duration;
       present_pitch = score[score_index].pitch;
+      uint16_t tmp_speed = get_speed();
+      if (tmp_speed < 50 || tmp_speed > 170) {
+        printf("Bad speed value. You may under an attack.\r\n");
+        printf("Reset speed to 120.\r\n");
+        set_speed(120);
+        IWDG_Feed();
+      }
       note_time = Du_to_us(present_du);
       set_score_index((score_index + 1) % SCORE_LENGTH);
       music_timer = 0;
     }
+    IWDG_Feed();
 		if(present_pitch != pause){
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
 			HAL_Delay(present_pitch);
+      IWDG_Feed();
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
 			HAL_Delay(present_pitch);
 		}
@@ -184,11 +210,13 @@ void SystemClock_Config(void)
 
 }
 
-void init_device(void) {
+void init_device(int hot) {
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
   /* Configure the system clock */
   SystemClock_Config();
+  // wait 100ms when cold boot
+  if (hot == 0) HAL_delay(100000);
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
