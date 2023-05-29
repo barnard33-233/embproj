@@ -38,6 +38,7 @@
 
 #include "zlg7290.h"
 #include "stdio.h"
+#include "stdlib.h"
 
 #include "const.h"
 #include "bak.h"
@@ -102,6 +103,7 @@ int main(void)
   printf("-------------------------------------------------\r\n");
   print_data();
 	printf("-------------------------------------------------\r\n");
+  IWDG_Feed();
 
   /* Infinite loop */
   while (1)
@@ -111,19 +113,22 @@ int main(void)
     if (flush_timer /*get_flush_timer()*/ >= 500000) {
       // 定时事件 每 500 ms
       flush_timer = 0; // reset_flush_timer();
-      // 刷新设备和引脚
-      init_device();
       // 同步所有备份数据
       recover_backups();
+      IWDG_Feed();
     }
 		if (get_flag1() == 1) {
       uint8_t tmp_rx1 = 0;
 			set_flag1(0);
+      IWDG_Feed();
 			I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
       set_Rx1_Buffer(tmp_rx1);
+      IWDG_Feed();
+
 			switch_key(); // 更新 flag 的值
 			printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
       switch_flag();
+      IWDG_Feed();
 		}
     if (enable_music == 0) continue;
     // uint32_t music_timer = get_music_timer();
@@ -138,9 +143,11 @@ int main(void)
       set_score_index((score_index + 1) % SCORE_LENGTH);
       music_timer = 0;
     }
+    IWDG_Feed();
 		if(present_pitch != pause){
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
 			HAL_Delay(present_pitch);
+      IWDG_Feed();
 			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
 			HAL_Delay(present_pitch);
 		}
