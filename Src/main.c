@@ -48,6 +48,7 @@
 
 #define SCORE_LENGTH 14
 #define SPEED_BUFFER_MAX 4
+#define MAX_FLAG1 5 // 开始输入，输入内容，停止输入，最长是5.
 
 const struct Note score[SCORE_LENGTH] = {
 	{C4, NOTE4},
@@ -88,6 +89,7 @@ void HAL_delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
 void init_device(int);
+void loop_delay(int time);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
@@ -97,6 +99,8 @@ int main(void)
 
   /* MCU Configuration */
   int hot = restore_data();
+  // wait 100ms when cold boot
+  if (hot == 0) loop_delay(1000);
 
   init_device(hot);
 
@@ -215,8 +219,6 @@ void init_device(int hot) {
   HAL_Init();
   /* Configure the system clock */
   SystemClock_Config();
-  // wait 100ms when cold boot
-  if (hot == 0) HAL_delay(100000);
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
@@ -303,7 +305,7 @@ void switch_flag(void){
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	set_flag1(1);
+	set_flag1(get_flag1() + 1); // if flag 1 reaches TODO, the zlg7290 and it's port should be refreshed.
 }
 
 int fputc(int ch, FILE *f)
@@ -333,6 +335,10 @@ void HAL_delay(__IO uint32_t delay) {
   now = past = start = HAL_GetTick();
   end = start + delay;
   while( (end < start && (now >= start || now <= end)) || (start <= end && (now >= start && now <= end))) {
+    // feed IWDG
+    IWDG_Feed()
+    // sleep
+    HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI); // TODO: test
     now = HAL_GetTick();
     if (now == past) {
       // 如果 now 在 10000 次循环后仍然没有变化
@@ -342,6 +348,10 @@ void HAL_delay(__IO uint32_t delay) {
       past = now, count = 0;
     }
   }
+}
+
+void loop_delay(int time){
+  for(int i = 0; i < time; i++);
 }
 
 /**
