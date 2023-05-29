@@ -46,12 +46,15 @@ __STATIC_INLINE void init_cdb0(void) {
   cdb0.chksum = get_chksum_cdb(&cdb0);
 }
 
-void restore_data(void) {
+int restore_data(void) {
+  int hot = 0;
   // restore music data
   if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
     mdb0 = mdb2 = mdb1;
+    hot = 1;
   } else if (get_chksum_mdb(&mdb2) == mdb2.chksum) {
     mdb0 = mdb1 = mdb2;
+    hot = 1;
   } else {
     init_mdb0();
     mdb1 = mdb2 = mdb0;
@@ -68,12 +71,15 @@ void restore_data(void) {
   // restore control data
   if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
     cdb0 = cdb2 = cdb1;
+    hot = 1;
   } else if (get_chksum_cdb(&cdb2) == cdb2.chksum) {
     cdb0 = cdb1 = cdb2;
+    hot = 1;
   } else {
     init_cdb0();
     cdb1 = cdb2 = cdb0;
   }
+  return hot;
 }
 
 void recover_backups(void) {

@@ -36,7 +36,7 @@ typedef BACKUP_CONTROL CDB;
 #define __BACKUP_ONE__ __attribute__((section("BACKUP_ONE"), zero_init))
 #define __BACKUP_TWO__ __attribute__((section("BACKUP_TWO"), zero_init))
 
-void restore_data(void);
+int restore_data(void);
 void recover_backups(void);
 
 MDB* get_correct_mdb(void);
