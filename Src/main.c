@@ -93,9 +93,94 @@ void loop_delay(int time);
 void init_keyboard(void);
 void init_beep(void);
 void init_uart(void);
+
+void module_TimeEvent(void);
+void module_Input(void);
+void module_Music(void);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
+
+// 定时事件模块
+void module_TimeEvent(void) {
+  if (get_stop() == 1) enable_music = 0;
+  else enable_music = 1;
+  if (flush_timer /*get_flush_timer()*/ >= 80000) {
+    // 定时事件 每 80 ms
+    flush_timer = 0; // reset_flush_timer();
+    // 同步所有备份数据
+    IWDG_Feed();
+    recover_backups();
+    init_beep();
+  }
+}
+
+// 按键处理模块
+void module_Input(void) {
+  if (get_flag1() >= 1) {
+    if(get_flag1() >= MAX_FLAG1) { // 输入滤波
+      IWDG_Feed();
+      init_keyboard();
+    }
+    uint8_t tmp_rx1 = 0;
+    set_flag1(0);
+    comp_flag = 0; // 序列完整性标志
+    IWDG_Feed();
+    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
+    set_Rx1_Buffer(tmp_rx1);
+    comp_flag |= 1;
+    IWDG_Feed();
+    switch_key(); // 更新 flag 的值
+    comp_flag |= 2;
+    // 在输入与处理间添加随机时延
+    loop_delay(rand() % 100);
+    if (comp_flag == 3) { 
+      IWDG_Feed();
+      printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
+      IWDG_Feed();
+      switch_flag();
+    } else {
+      // 不等于 3 意味着攻击者跳过了前面的语句
+      IWDG_Feed();
+      printf("You may under an attack. Input Abort.\r\n");
+    }
+  }
+}
+
+void module_Music(void) {
+  // 音符播放模块
+  if (enable_music == 0) return;
+  IWDG_Feed();
+  uint32_t score_index = get_score_index();
+  if(music_timer >= note_time - note_time/32){
+    present_pitch = pause;
+  }
+  if(music_timer >= note_time){
+    present_du = score[score_index].duration;
+    present_pitch = score[score_index].pitch;
+    uint16_t tmp_speed = get_speed();
+    if (tmp_speed < 50 || tmp_speed > 170) {
+      // 速度复原
+      IWDG_Feed();
+      printf("Bad speed value. You may under an attack.\r\n");
+      printf("Reset speed to 120.\r\n");
+      set_speed(120);
+    }
+    // 写入音符信息
+    IWDG_Feed();
+    note_time = Du_to_us(present_du);
+    set_score_index((score_index + 1) % SCORE_LENGTH);
+    music_timer = 0;
+  }
+  if(present_pitch != pause){
+    IWDG_Feed();
+    HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
+    HAL_Delay(present_pitch);
+    IWDG_Feed();
+    HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
+    HAL_Delay(present_pitch);
+  }
+}
 
 int main(void)
 {
@@ -120,78 +205,20 @@ int main(void)
   while (1)
   {
     IWDG_Feed();
-    // 定时事件模块
-    if (get_stop() == 1) enable_music = 0;
-    else enable_music = 1;
-    if (flush_timer /*get_flush_timer()*/ >= 80000) {
-      // 定时事件 每 80 ms
-      flush_timer = 0; // reset_flush_timer();
-      // 同步所有备份数据
-      IWDG_Feed();
-      recover_backups();
-      init_beep();
+		int t = rand() % 3;
+    if (t == 0) {
+      module_TimeEvent();
+      module_Input();
+      module_Music();
+    } else if (t == 1) {
+      module_Input();
+      module_Music();
+      module_TimeEvent();
+    } else {
+      module_Music();
+      module_TimeEvent();
+      module_Input();
     }
-    // 按键处理模块
-		if (get_flag1() >= 1) {
-      if(get_flag1() >= MAX_FLAG1) { // 输入滤波
-        IWDG_Feed();
-        init_keyboard();
-      }
-      uint8_t tmp_rx1 = 0;
-			set_flag1(0);
-      comp_flag = 0; // 序列完整性标志
-      IWDG_Feed();
-			I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
-      set_Rx1_Buffer(tmp_rx1);
-      comp_flag |= 1;
-      IWDG_Feed();
-			switch_key(); // 更新 flag 的值
-      comp_flag |= 2;
-      // 在输入与处理间添加随机时延
-      loop_delay(rand() % 100);
-      if (comp_flag == 3) { 
-        IWDG_Feed();
-        printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
-        IWDG_Feed();
-        switch_flag();
-      } else {
-        // 不等于 3 意味着攻击者跳过了前面的语句
-        IWDG_Feed();
-        printf("You may under an attack. Input Abort.\r\n");
-      }
-		}
-    if (enable_music == 0) continue;
-    // 音符播放模块
-    IWDG_Feed();
-		uint32_t score_index = get_score_index();
-		if(music_timer >= note_time - note_time/32){
-      present_pitch = pause;
-    }
-    if(music_timer >= note_time){
-      present_du = score[score_index].duration;
-      present_pitch = score[score_index].pitch;
-      uint16_t tmp_speed = get_speed();
-      if (tmp_speed < 50 || tmp_speed > 170) {
-        // 速度复原
-        IWDG_Feed();
-        printf("Bad speed value. You may under an attack.\r\n");
-        printf("Reset speed to 120.\r\n");
-        set_speed(120);
-      }
-      // 写入音符信息
-      IWDG_Feed();
-      note_time = Du_to_us(present_du);
-      set_score_index((score_index + 1) % SCORE_LENGTH);
-      music_timer = 0;
-    }
-		if(present_pitch != pause){
-      IWDG_Feed();
-			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
-			HAL_Delay(present_pitch);
-      IWDG_Feed();
-			HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
-			HAL_Delay(present_pitch);
-		}
   }
 }
 
