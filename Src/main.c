@@ -91,6 +91,8 @@ void HAL_SYSTICK_Callback(void);
 void init_device(int);
 void loop_delay(int time);
 void init_keyboard(void);
+void init_beep(void);
+void init_uart(void);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
@@ -118,6 +120,7 @@ int main(void)
   while (1)
   {
     IWDG_Feed();
+    // 定时事件模块
     if (get_stop() == 1) enable_music = 0;
     else enable_music = 1;
     if (flush_timer /*get_flush_timer()*/ >= 80000) {
@@ -126,9 +129,9 @@ int main(void)
       // 同步所有备份数据
       IWDG_Feed();
       recover_backups();
-      IWDG_Feed();
       init_beep();
     }
+    // 按键处理模块
 		if (get_flag1() >= 1) {
       if(get_flag1() >= MAX_FLAG1) { // 输入滤波
         IWDG_Feed();
@@ -158,7 +161,7 @@ int main(void)
       }
 		}
     if (enable_music == 0) continue;
-    // 音符计算模块
+    // 音符播放模块
     IWDG_Feed();
 		uint32_t score_index = get_score_index();
 		if(music_timer >= note_time - note_time/32){
@@ -338,15 +341,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 int fputc(int ch, FILE *f)
 { 
-  uint8_t tmp[1]={0};
+  uint8_t tmp[1]={0}, c = 0;
 	tmp[0] = (uint8_t)ch;
-	HAL_UART_Transmit(&huart1,tmp,1,10000);	
+	while (HAL_OK != HAL_UART_Transmit(&huart1, tmp, 1, 10000)) {
+    c++;
+    if (c == 2) init_uart();
+    else if (c >= 4) Error_Handler(0);
+  }	
 	return ch;
 }
 
 void print_data(void) {
 	printf("Here is our datas: \r\n");
 	printf("Current speed is %d \r\n", (int)get_speed());
+  IWDG_Feed();
 	printf("Score index is %d \r\n", (int)get_score_index());
 	if (get_stop() != 0) {
 		printf("Playing pause now \r\n");
@@ -392,6 +400,7 @@ void Error_Handler(int err)
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
   // TODO: 这里该写什么呢 ?
+  IWDG_Feed();
   printf("\n\r!! Error Handler !!\r\n");
   if (err == 1) {
     printf("@ It looks like all backups of mdb broken!\r\n");
