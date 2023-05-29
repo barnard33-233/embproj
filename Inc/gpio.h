@@ -42,21 +42,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
-
 extern void Error_Handler(int);
 
 void MX_GPIO_Init(void);
 
-/* USER CODE BEGIN Prototypes */
+void GPIO_Init_Keyboard(void);
 
-/* USER CODE END Prototypes */
+void GPIO_Init_Beep(void);
 
 #ifdef __cplusplus
 }
