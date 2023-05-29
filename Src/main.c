@@ -85,7 +85,7 @@ void switch_flag(void);
 void HAL_delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
-void init_device(void);
+void init_device(int);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
@@ -94,9 +94,9 @@ int main(void)
 {
 
   /* MCU Configuration */
-  restore_data();
+  int hot = restore_data();
 
-  init_device();
+  init_device(hot);
 
   printf("-------------------------------------------------\r\n");
   printf(" Muti speed music player! \r\n");
@@ -191,11 +191,13 @@ void SystemClock_Config(void)
 
 }
 
-void init_device(void) {
+void init_device(int hot) {
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
   /* Configure the system clock */
   SystemClock_Config();
+  // wait 100ms when cold boot
+  if (hot == 0) HAL_delay(100000);
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
