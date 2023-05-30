@@ -114,6 +114,8 @@ void module_TimeEvent(void) {
     IWDG_Feed();
     recover_backups();
     init_beep();
+    IWDG_Feed();
+    printf("Fresh beep and backups...\r\n");
   }
 }
 
