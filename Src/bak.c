@@ -245,3 +245,12 @@ void set_flag(uint8_t _new) {
 void set_speed_buffer(uint16_t _new) {
   UPDATE_CDB(speed_buffer);
 }
+
+void plus_flag1(void) {
+  CDB *p = get_correct_cdb();
+  p->flag1 ++;
+  p->chksum = get_chksum_cdb(p);
+  cdb0.flag1 = p->flag1, cdb0.chksum = p->chksum;
+  cdb1.flag1 = p->flag1, cdb1.chksum = p->chksum;
+  cdb2.flag1 = p->flag1, cdb2.chksum = p->chksum;
+}

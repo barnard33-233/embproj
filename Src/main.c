@@ -363,7 +363,7 @@ void switch_flag(void){
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	set_flag1(get_flag1() + 1); // if flag 1 reaches TODO, the zlg7290 and it's port should be refreshed.
+	plus_flag1(); // if flag 1 reaches TODO, the zlg7290 and it's port should be refreshed.
 }
 
 int fputc(int ch, FILE *f)

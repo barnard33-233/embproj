@@ -68,4 +68,6 @@ void set_receiving(uint8_t _new);
 void set_flag(uint8_t _new);
 void set_speed_buffer(uint16_t _new);
 
+void plus_flag1(void);
+
 #endif
