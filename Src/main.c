@@ -190,7 +190,8 @@ int main(void)
   if (hot == 0) loop_delay(1000);
 
   init_device(hot);
-
+  IWDG_Start();
+  
   IWDG_Feed();
   if (hot == 1) printf("A hot booting... \r\n");
   printf("-------------------------------------------------\r\n");

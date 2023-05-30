@@ -9,9 +9,7 @@ extern IWDG_HandleTypeDef h_iwdg;
 extern void Error_Handler(int);
 
 void IWDG_Init(void);
-
-__STATIC_INLINE void IWDG_Feed(void){
-    HAL_IWDG_Refresh(&h_iwdg);
-}
+void IWDG_Start(void);
+void IWDG_Feed(void);
 
 #endif
