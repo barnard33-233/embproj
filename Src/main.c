@@ -413,7 +413,7 @@ void switch_flag(void){
 			set_speed_buffer(0);
       set_receiving(0);
     }
-    display(flag);
+    display();
   } else {
     switch (flag) {
       case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
