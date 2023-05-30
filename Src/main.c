@@ -363,7 +363,13 @@ void switch_flag(void){
       case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
       case 10: set_stop(1); printf("Pause music...\r\n"); break;
       case 11: set_stop(0); printf("Continue music...\r\n"); break;
-      case 15: print_data(); break;
+      case 15: {
+        IWDG_Feed();
+        printf("-------------------------------------------------\r\n");
+        print_data();
+        printf("-------------------------------------------------\r\n");
+        break;
+      }
       default: break;
     }
   }
