@@ -104,6 +104,7 @@ void module_Music(void);
 
 // 定期事件模块
 void module_TimeEvent(void) {
+  // 控制 music_timer 是否计数
   if (get_stop() == 1) enable_music = 0;
   else enable_music = 1;
   if (flush_timer /*get_flush_timer()*/ >= 40000) {
@@ -150,7 +151,7 @@ void module_Input(void) {
 
 void module_Music(void) {
   // 音符播放模块
-  if (enable_music == 0) return;
+  if (get_stop() == 1) return;
   uint32_t score_index = get_score_index();
   if(music_timer >= note_time - note_time/32){
     present_pitch = pause;
