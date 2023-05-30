@@ -47,7 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
-#define DISPLAY_BUFFER_MAX 8
+#define DISPLAY_BUFFER_MAX 4
 #define MAX_FLAG1 3 // 开始输入，输入内容，停止输入，最长是5.
 
 const struct Note score[SCORE_LENGTH] = {
@@ -386,14 +386,9 @@ void analyze_display(){
     }
   }
   else{
-    display_buffer[0] = 0;
-    display_buffer[1] = 0;
-    display_buffer[2] = 0;
-    display_buffer[3] = 0;
-    display_buffer[4] = 0;
-    display_buffer[5] = 0;
-    display_buffer[6] = 0;
-    display_buffer[7] = 0;
+    for(int i = 0; i < DISPLAY_BUFFER_MAX; i++){
+      display_buffer[0] = 0;
+    }
   }
 }
 
