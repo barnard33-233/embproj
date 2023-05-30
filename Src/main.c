@@ -47,7 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
-#define SPEED_BUFFER_MAX 4
+#define DISPLAY_BUFFER_MAX 3
 #define MAX_FLAG1 3 // 开始输入，输入内容，停止输入，最长是5.
 
 const struct Note score[SCORE_LENGTH] = {
@@ -351,6 +351,46 @@ int chk_speed_valid(uint16_t speed) {
   return speed >= 50 && speed <= 170;
 }
 
+// TODO: make this secure
+uint8_t display_buffer[DISPLAY_BUFFER_MAX];
+
+uint8_t translate(uint8_t value){
+  switch(value){
+    case 0: return 0xfc;
+    case 1: return 0x0c;
+    case 2: return 0xda;
+    case 3: return 0xf2;
+    case 4: return 0x66;
+    case 5: return 0xb6;
+    case 6: return 0xbe;
+    case 7: return 0xe0;
+    case 8: return 0xfe;
+    case 9: return 0xe6;
+  }
+}
+
+void analyze_display(){
+  if(get_flag() <= 9){
+    // normally
+    int speed_buffer = get_speed_buffer();
+    for(int i = 0; i < DISPLAY_BUFFER_MAX; i ++){
+      display_buffer[DISPLAY_BUFFER_MAX - i] = speed_buffer % 10;
+      speed_buffer /= 10;
+    }
+  }
+  else{
+    display_buffer[0] = 0;
+    display_buffer[1] = 0;
+    display_buffer[2] = 0;
+  }
+}
+
+void display(){
+  //TODO: if number pressed, display it; if '#' pressed, clean display; if others pressed do nothing
+  analyze_display();
+  I2C_ZLG7290_Write(&hi2c1, 0x70, 0x10, display_buffer, DISPLAY_BUFFER_MAX);
+}
+
 void switch_flag(void){
   uint8_t flag = get_flag();
   if (get_receiving()) { // receiving user input.
@@ -373,6 +413,7 @@ void switch_flag(void){
 			set_speed_buffer(0);
       set_receiving(0);
     }
+    display(flag);
   } else {
     switch (flag) {
       case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
@@ -392,7 +433,7 @@ void switch_flag(void){
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	plus_one_flag1(); // if flag 1 reaches TODO, the zlg7290 and it's port should be refreshed.
+	plus_one_flag1();
 }
 
 int fputc(int ch, FILE *f)
@@ -433,7 +474,7 @@ void HAL_delay(__IO uint32_t delay) {
     // feed IWDG
     IWDG_Feed();
     // 进入休眠模式
-    HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI); // TODO: test
+    HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
     now = HAL_GetTick();
     if (now == past) {
       // 如果 now 在 20 次循环后仍然没有变化
@@ -458,7 +499,6 @@ void Error_Handler(int err)
 {
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
-  // TODO: 这里该写什么呢 ?
   IWDG_Feed();
   printf("\n\r!! Error Handler !!\r\n");
   if (err == 1) {
