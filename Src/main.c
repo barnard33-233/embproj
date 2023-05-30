@@ -88,7 +88,7 @@ void switch_flag(void);
 void HAL_delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
-void init_device(int);
+void init_device(void);
 void loop_delay(int time);
 void init_keyboard(void);
 void init_beep(void);
@@ -265,7 +265,7 @@ void SystemClock_Config(void)
 
 }
 
-void init_device(int hot) {
+void init_device(void) {
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
   /* Configure the system clock */
