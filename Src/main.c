@@ -358,9 +358,9 @@ void switch_flag(void){
     }
   } else {
     switch (flag) {
-      case 14: set_receiving(1); break;
-      case 10: set_stop(1); break;
-      case 11: set_stop(0); break;
+      case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
+      case 10: set_stop(1); printf("Pause music...\r\n"); break;
+      case 11: set_stop(0); printf("Continue music...\r\n"); break;
       case 15: print_data(); break;
       default: break;
     }
