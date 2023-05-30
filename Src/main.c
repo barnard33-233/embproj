@@ -196,7 +196,7 @@ int main(void)
   // delay when cold boot
   if (hot == 0) loop_delay(1000);
 
-  init_device(hot);
+  init_device();
   IWDG_Start();
   
   IWDG_Feed();
