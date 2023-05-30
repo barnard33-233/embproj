@@ -5,10 +5,6 @@ MDB mdb0;
 MDB __BACKUP_ONE__ mdb1;
 MDB __BACKUP_TWO__ mdb2;
 
-// TDB tdb0;
-// TDB __BACKUP_ONE__ tdb1;
-// TDB __BACKUP_TWO__ tdb2;
-
 CDB cdb0;
 CDB __BACKUP_ONE__ cdb1;
 CDB __BACKUP_TWO__ cdb2;
@@ -34,12 +30,6 @@ __STATIC_INLINE void init_mdb0(void) {
   mdb0.chksum = get_chksum_mdb(&mdb0);
 }
 
-// __STATIC_INLINE void init_tdb0(void) {
-//   tdb0.music_timer = 0;
-//   tdb0.flush_timer = 0;
-//   tdb0.chksum = check_data((uint8_t *)&tdb0, sizeof(TDB) - 1);
-// }
-
 __STATIC_INLINE void init_cdb0(void) {
   cdb0.flag1 = 0;
   cdb0.Rx1_Buffer = 0;
@@ -63,16 +53,6 @@ int restore_data(void) {
     mdb1 = mdb2 = mdb0;
   }
   pmdb = &mdb0;
-  // restore timer
-  // if (check_data((uint8_t *)&tdb1, sizeof(TDB)) == 0) {
-  //   tdb0 = tdb2 = tdb1;
-  // } else if (check_data((uint8_t *)&tdb2, sizeof(TDB)) == 0) {
-  //   tdb0 = tdb1 = tdb2;
-  // } else {
-  //   init_tdb0();
-  //   tdb1 = tdb2 = tdb0;
-  // }
-  // restore control data
   if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
     cdb0 = cdb2 = cdb1;
     hot = 1;
@@ -136,23 +116,6 @@ CDB* get_correct_cdb(void) {
   return NULL;
 }
 
-// TDB* get_correct_tdb(void) {
-//   if (check_data((uint8_t *)&tdb0, sizeof(TDB)) == 0) {
-//     tdb1 = tdb2 = tdb0;
-//     return &tdb0;
-//   }
-//   if (check_data((uint8_t *)&tdb1, sizeof(TDB)) == 0) {
-//     tdb0 = tdb2 = tdb1;
-//     return &tdb1;
-//   }
-//   if (check_data((uint8_t *)&tdb2, sizeof(TDB)) == 0) {
-//     tdb0 = tdb1 = tdb2;
-//     return &tdb2;
-//   }
-//   Error_Handler();
-//   return NULL;
-// }
-
 // music data
 uint16_t get_speed(void) {
   return get_correct_mdb()->speed;
@@ -164,63 +127,33 @@ uint8_t get_stop(void) {
   return get_correct_mdb()->stop;
 }
 
-#define UPDATE_MDB(x) \
+#define MDB_UPD_VALUE(var_name, new_value) \
   MDB *p = get_correct_mdb(); \
-  p->##x = _new; \
-  p->chksum = get_chksum_mdb(p); \
-  mdb0.##x = _new, mdb0.chksum = p->chksum; \
-  mdb1.##x = _new, mdb1.chksum = p->chksum; \
-  mdb2.##x = _new, mdb2.chksum = p->chksum;
+  p->##var_name = new_value; \
+  p->chksum = get_chksum_mdb(p);
+
+#define MDB_PLUS_VALUE(var_name, plus_value) \
+  MDB *p = get_correct_mdb(); \
+  p->##var_name += plus_value; \
+  p->chksum = get_chksum_mdb(p);
+
+#define MDB_UPD_ALL(var_name, new_value) \
+  mdb0.##var_name = new_value, mdb0.chksum = p->chksum; \
+  mdb1.##var_name = new_value, mdb1.chksum = p->chksum; \
+  mdb2.##var_name = new_value, mdb2.chksum = p->chksum;
 
 void set_speed(uint16_t _new) {
-  UPDATE_MDB(speed);
+  MDB_UPD_VALUE(speed, _new);
+  MDB_UPD_ALL(speed, p->speed);
 }
 void set_score_index(uint32_t _new) {
-  UPDATE_MDB(score_index);
+  MDB_UPD_VALUE(score_index, _new);
+  MDB_UPD_ALL(score_index, p->score_index);
 }
 void set_stop(uint8_t _new) {
-  UPDATE_MDB(stop);
+  MDB_UPD_VALUE(stop, _new);
+  MDB_UPD_ALL(stop, p->stop);
 }
-
-// timer
-// uint32_t get_music_timer(void) {
-//   return get_correct_tdb()->music_timer;
-// }
-// uint32_t get_flush_timer(void) {
-//   return get_correct_tdb()->flush_timer;
-// }
-// void reset_music_timer(void) {
-//   tdb0.chksum ^= tdb0.music_timer;
-//   tdb0.music_timer = 0;
-//   tdb1.chksum ^= tdb1.music_timer;
-//   tdb1.music_timer = 0;
-//   tdb2.chksum ^= tdb2.music_timer;
-//   tdb2.music_timer = 0;
-// }
-// void reset_flush_timer(void) {
-//   tdb0.chksum ^= tdb0.flush_timer;
-//   tdb0.flush_timer = 0;
-//   tdb1.chksum ^= tdb1.flush_timer;
-//   tdb1.flush_timer = 0;
-//   tdb2.chksum ^= tdb2.flush_timer;
-//   tdb2.flush_timer = 0;
-// }
-// void plus_music_timer(void) {
-//   tdb0.chksum ^= tdb0.music_timer ^ (tdb0.music_timer + 1);
-//   tdb0.music_timer++;
-//   tdb1.chksum ^= tdb1.music_timer ^ (tdb1.music_timer + 1);
-//   tdb1.music_timer++;
-//   tdb2.chksum ^= tdb2.music_timer ^ (tdb2.music_timer + 1);
-//   tdb2.music_timer++;
-// }
-// void plus_flush_timer(void) {
-//   tdb0.chksum ^= tdb0.flush_timer ^ (tdb0.flush_timer + 1);
-//   tdb0.flush_timer++;
-//   tdb1.chksum ^= tdb1.flush_timer ^ (tdb1.flush_timer + 1);
-//   tdb1.flush_timer++;
-//   tdb2.chksum ^= tdb2.flush_timer ^ (tdb2.flush_timer + 1);
-//   tdb2.flush_timer++;
-// }
 
 // control
 uint8_t get_flag1(void) {
@@ -239,35 +172,47 @@ uint16_t get_speed_buffer(void) {
   return get_correct_cdb()->speed_buffer;
 }
 
-#define UPDATE_CDB(x) \
+#define CDB_UPD_VALUE(var_name, new_value) \
   CDB *p = get_correct_cdb(); \
-  p->##x = _new; \
-  p->chksum = get_chksum_cdb(p); \
-  cdb0.##x = _new, cdb0.chksum = p->chksum; \
-  cdb1.##x = _new, cdb1.chksum = p->chksum; \
-  cdb2.##x = _new, cdb2.chksum = p->chksum;
+  p->##var_name = new_value; \
+  p->chksum = get_chksum_cdb(p);
+
+#define CDB_PLUS_VALUE(var_name, plus_value) \
+  CDB *p = get_correct_cdb(); \
+  p->##var_name += plus_value; \
+  p->chksum = get_chksum_cdb(p);
+
+#define CDB_UPD_ALL(var_name, new_value) \
+  cdb0.##var_name = new_value, cdb0.chksum = p->chksum; \
+  cdb1.##var_name = new_value, cdb1.chksum = p->chksum; \
+  cdb2.##var_name = new_value, cdb2.chksum = p->chksum;
 
 void set_flag1(uint8_t _new) {
-  UPDATE_CDB(flag1);
+  CDB_UPD_VALUE(flag1, _new);
+  CDB_UPD_ALL(flag1, p->flag1);
 }
 void set_Rx1_Buffer(uint8_t _new) {
-  UPDATE_CDB(Rx1_Buffer);
+  CDB_UPD_VALUE(Rx1_Buffer, _new);
+  CDB_UPD_ALL(Rx1_Buffer, p->Rx1_Buffer);
 }
 void set_receiving(uint8_t _new) {
-  UPDATE_CDB(receiving);
+  CDB_UPD_VALUE(receiving, _new);
+  CDB_UPD_ALL(receiving, p->receiving);
 }
 void set_flag(uint8_t _new) {
-  UPDATE_CDB(flag);
+  CDB_UPD_VALUE(flag, _new);
+  CDB_UPD_ALL(flag, p->flag);
 }
 void set_speed_buffer(uint16_t _new) {
-  UPDATE_CDB(speed_buffer);
+  CDB_UPD_VALUE(speed_buffer, _new);
+  CDB_UPD_ALL(speed_buffer, p->speed_buffer);
 }
-
-void plus_flag1(void) {
+void plus_one_flag1(void) {
+  CDB_PLUS_VALUE(flag1, 1);
+  CDB_UPD_ALL(flag1, p->flag1);
+}
+void update_speed_buffer(void) {
   CDB *p = get_correct_cdb();
-  p->flag1 ++;
-  p->chksum = get_chksum_cdb(p);
-  cdb0.flag1 = p->flag1, cdb0.chksum = p->chksum;
-  cdb1.flag1 = p->flag1, cdb1.chksum = p->chksum;
-  cdb2.flag1 = p->flag1, cdb2.chksum = p->chksum;
+  p->speed_buffer = p->speed_buffer * 10 + p->flag;
+  CDB_UPD_ALL(speed_buffer, p->speed_buffer);
 }

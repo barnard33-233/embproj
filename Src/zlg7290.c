@@ -25,7 +25,6 @@ __IO uint32_t  I2CTimeout = I2C_Open_LONG_TIMEOUT;
 void I2C_ZLG7290_Read(I2C_HandleTypeDef *I2Cx,uint8_t I2C_Addr,uint8_t addr,uint8_t *buf,uint8_t num)
 {
     while(HAL_I2C_Mem_Read (I2Cx ,I2C_Addr,addr,I2C_MEMADD_SIZE_8BIT,buf,num,I2CTimeout) != HAL_OK ){};
-	IWDG_Feed();
 }
 
 /*******************************************************************************
