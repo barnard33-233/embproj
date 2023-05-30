@@ -113,7 +113,11 @@ void module_TimeEvent(void) {
     // 同步所有备份数据
     IWDG_Feed();
     recover_backups();
+    // 初始化设备
+    IWDG_Feed();
     init_beep();
+    // init_keyboard();
+    // init_uart();
     IWDG_Feed();
     // printf("Fresh beep and backups...\r\n");
   }
@@ -122,7 +126,7 @@ void module_TimeEvent(void) {
 // 按键处理模块
 void module_Input(void) {
   if (get_flag1() >= 1) {
-    if(get_flag1() >= MAX_FLAG1) { // 输入滤波
+    if(get_flag1() >= MAX_FLAG1) {
       IWDG_Feed();
       init_keyboard();
     }
