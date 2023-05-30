@@ -93,6 +93,7 @@ void loop_delay(int time);
 void init_keyboard(void);
 void init_beep(void);
 void init_uart(void);
+int chk_speed_valid(uint16_t speed);
 
 void module_TimeEvent(void);
 void module_Input(void);
@@ -101,12 +102,12 @@ void module_Music(void);
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
 
-// 定时事件模块
+// 定期事件模块
 void module_TimeEvent(void) {
   if (get_stop() == 1) enable_music = 0;
   else enable_music = 1;
-  if (flush_timer /*get_flush_timer()*/ >= 80000) {
-    // 定时事件 每 80 ms
+  if (flush_timer /*get_flush_timer()*/ >= 40000) {
+    // 定时事件 每 40 ms
     flush_timer = 0; // reset_flush_timer();
     // 同步所有备份数据
     IWDG_Feed();
@@ -150,7 +151,6 @@ void module_Input(void) {
 void module_Music(void) {
   // 音符播放模块
   if (enable_music == 0) return;
-  IWDG_Feed();
   uint32_t score_index = get_score_index();
   if(music_timer >= note_time - note_time/32){
     present_pitch = pause;
@@ -158,8 +158,7 @@ void module_Music(void) {
   if(music_timer >= note_time){
     present_du = score[score_index].duration;
     present_pitch = score[score_index].pitch;
-    uint16_t tmp_speed = get_speed();
-    if (tmp_speed < 50 || tmp_speed > 170) {
+    if (chk_speed_valid(get_speed())) {
       // 速度复原
       IWDG_Feed();
       printf("Bad speed value. You may under an attack.\r\n");
@@ -204,7 +203,7 @@ int main(void)
   /* Infinite loop */
   while (1)
   {
-    IWDG_Feed();
+    // 如果长时间没有喂狗 说明 timer 出了问题 会热启动
 		int t = rand() % 3;
     if (t == 0) {
       module_TimeEvent();
@@ -329,20 +328,24 @@ void switch_key(void) {
   }
 }
 
+int chk_speed_valid(uint16_t speed) {
+  return speed >= 50 && speed <= 170;
+}
+
 void switch_flag(void){
   uint8_t flag = get_flag();
   if (get_receiving()) { // receiving user input.
-    uint16_t speed_buffer = get_speed_buffer();
     if (flag <= 9) {
-      set_speed_buffer(speed_buffer * 10 + flag);
-      printf("Receiving... (%d)\r\n", speed_buffer * 10 + flag);
+      update_speed_buffer();
+      printf("Receiving... (%d)\r\n", get_speed_buffer());
     } else if (flag == 14) { // commit
-      if(speed_buffer <= 170 && speed_buffer >= 50){ // valid value
-        set_speed(speed_buffer);
+      if(chk_speed_valid(get_speed_buffer())){ // valid value
+        set_speed(get_speed_buffer());
         printf("Commit! Change speed to %d.\r\n", get_speed());
       } else{
-        printf("Invalid value: %d.\r\n", speed_buffer);
+        printf("Invalid value: %d.\r\n", get_speed_buffer());
       }
+      IWDG_Feed();
 			set_speed_buffer(0);
       set_receiving(0);
       printf("Finish receiving!\r\n");
@@ -356,6 +359,7 @@ void switch_flag(void){
       case 14: set_receiving(1); break;
       case 10: set_stop(1); break;
       case 11: set_stop(0); break;
+      case 15: print_data(); break;
       default: break;
     }
   }
@@ -363,7 +367,7 @@ void switch_flag(void){
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	plus_flag1(); // if flag 1 reaches TODO, the zlg7290 and it's port should be refreshed.
+	plus_one_flag1(); // if flag 1 reaches TODO, the zlg7290 and it's port should be refreshed.
 }
 
 int fputc(int ch, FILE *f)
@@ -388,6 +392,9 @@ void print_data(void) {
 	} else {
 		printf("Playing will continue \r\n");
 	}
+  if (get_receiving() != 0) {
+    printf("Receiving... (%d) \r\n", (int)get_speed_buffer());
+  }
 }
 
 // HAL_delay 重写
