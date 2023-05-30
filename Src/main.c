@@ -130,20 +130,31 @@ void module_Input(void) {
       IWDG_Feed();
       init_keyboard();
     }
-    uint8_t tmp_rx1 = 0;
+    uint8_t tmp_rx1 = 0, tmp_rx2 = 0, tmp_rx3 = 0;
     set_flag1(0);
     comp_flag = 0; // 序列完整性标志
     IWDG_Feed();
     I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
-    set_Rx1_Buffer(tmp_rx1);
     comp_flag |= 1;
     IWDG_Feed();
-    switch_key(); // 更新 flag 的值
+    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx2, 1);
     comp_flag |= 2;
+    if (tmp_rx2 != tmp_rx1) {
+      IWDG_Feed();
+      I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx3, 1);
+      if (tmp_rx1 == tmp_rx2) tmp_rx1 = tmp_rx1;
+      else if (tmp_rx1 == tmp_rx3) tmp_rx1 = tmp_rx3;
+      else if (tmp_rx2 == tmp_rx3) tmp_rx1 = tmp_rx2;
+      else Error_Handler(0);
+    }
+    set_Rx1_Buffer(tmp_rx1);
+    comp_flag |= 4;
+    IWDG_Feed();
     // 在输入与处理间添加随机时延
     loop_delay(rand() % 100);
-    if (comp_flag == 3) { 
+    if (comp_flag == 7) {
       IWDG_Feed();
+      switch_key(); // 更新 flag 的值 
       printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
       IWDG_Feed();
       switch_flag();
