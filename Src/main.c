@@ -48,7 +48,6 @@
 
 #define SCORE_LENGTH 14
 #define DISPLAY_BUFFER_MAX 4
-#define MAX_FLAG1 3 // 开始输入，输入内容，停止输入，最长是5.
 
 const struct Note score[SCORE_LENGTH] = {
 	{C4, NOTE4},
@@ -83,8 +82,6 @@ uint32_t music_timer = 0;
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
 void Error_Handler(int err);
-void switch_key(void); // 将键值转化为对应的数字
-void switch_flag(void);
 void HAL_delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
@@ -96,8 +93,8 @@ void init_uart(void);
 int chk_speed_valid(uint16_t speed);
 
 void module_TimeEvent(void);
-void module_Input(void);
 void module_Music(void);
+extern void module_Input(void);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
@@ -120,49 +117,6 @@ void module_TimeEvent(void) {
     // init_uart();
     IWDG_Feed();
     // printf("Fresh beep and backups...\r\n");
-  }
-}
-
-// 按键处理模块
-void module_Input(void) {
-  if (get_flag1() >= 1) {
-    if(get_flag1() >= MAX_FLAG1) {
-      IWDG_Feed();
-      init_keyboard();
-    }
-    uint8_t tmp_rx1 = 0, tmp_rx2 = 0, tmp_rx3 = 0;
-    set_flag1(0);
-    comp_flag = 0; // 序列完整性标志
-    IWDG_Feed();
-    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
-    comp_flag |= 1;
-    IWDG_Feed();
-    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx2, 1);
-    comp_flag |= 2;
-    if (tmp_rx2 != tmp_rx1) {
-      IWDG_Feed();
-      I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx3, 1);
-      if (tmp_rx1 == tmp_rx2) tmp_rx1 = tmp_rx1;
-      else if (tmp_rx1 == tmp_rx3) tmp_rx1 = tmp_rx3;
-      else if (tmp_rx2 == tmp_rx3) tmp_rx1 = tmp_rx2;
-      else Error_Handler(0);
-    }
-    set_Rx1_Buffer(tmp_rx1);
-    comp_flag |= 4;
-    IWDG_Feed();
-    // 在输入与处理间添加随机时延
-    loop_delay(rand() % 100);
-    if (comp_flag == 7) {
-      IWDG_Feed();
-      switch_key(); // 更新 flag 的值 
-      printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
-      IWDG_Feed();
-      switch_flag();
-    } else {
-      // 不等于 3 意味着攻击者跳过了前面的语句
-      IWDG_Feed();
-      printf("You may under an attack. Input Abort.\r\n");
-    }
   }
 }
 
@@ -199,9 +153,32 @@ void module_Music(void) {
   }
 }
 
+void refresh_Display(void) {
+  // convert data to write buffer
+  static int last_fresh = -1;
+  if (flush_timer / 23 != last_fresh) {
+    IWDG_Feed();
+    update_disp_left();
+    update_disp_right();
+    update_disp_mid();
+    last_fresh = flush_timer / 233;
+  }
+}
+
+void do_Display(void) {
+  // convert write buffer to i2c one by one
+  static int last_fresh = -1;
+  if (flush_timer / 133 != last_fresh) {
+    IWDG_Feed();
+    uint8_t i = get_disp_i();
+    I2C_ZLG7290_WriteOneByte(&hi2c1, 0x70, 0x10 + i, get_disp_buf(i));
+    plus_one_disp_i();
+    last_fresh = flush_timer / 133;
+  }
+}
+
 int main(void)
 {
-
   /* MCU Configuration */
   int hot = restore_data();
   // delay when cold boot
@@ -222,20 +199,25 @@ int main(void)
   /* Infinite loop */
   while (1)
   {
-    // 如果长时间没有喂狗 说明 timer 出了问题 会热启动
 		int t = rand() % 3;
     if (t == 0) {
+      refresh_Display();
       module_TimeEvent();
-      module_Input();
       module_Music();
+      module_Input();
+      do_Display();
     } else if (t == 1) {
       module_Input();
+      do_Display();
       module_Music();
+      refresh_Display();
       module_TimeEvent();
     } else {
-      module_Music();
-      module_TimeEvent();
       module_Input();
+      refresh_Display();
+      module_Music();
+      do_Display();
+      module_TimeEvent();
     }
   }
 }
@@ -291,7 +273,6 @@ void init_device(void) {
 
 void init_keyboard(void) {
   GPIO_Init_Keyboard();
-  MX_I2C1_Init();
 }
 
 void init_beep(void) {
@@ -325,117 +306,8 @@ void HAL_SYSTICK_Callback(void) {
   if (enable_music == 1) music_timer ++;
 }
 
-void switch_key(void) {
-  switch (get_Rx1_Buffer()) {
-    case 0x1c: set_flag(1); break; // numbers
-		case 0x1b: set_flag(2); break;
-		case 0x1a: set_flag(3); break;
-		case 0x14: set_flag(4); break;
-		case 0x13: set_flag(5); break;
-		case 0x12: set_flag(6); break;
-    case 0x0c: set_flag(7); break;
-		case 0x0b: set_flag(8); break;
-		case 0x0a: set_flag(9); break;
-		case 0x03: set_flag(0); break; // 0
-		case 0x19: set_flag(10); break; // A
-		case 0x11: set_flag(11); break; // B
-		case 0x09: set_flag(12); break; // C
-		case 0x01: set_flag(13); break; // D
-		case 0x02: set_flag(14); break; // #
-		case 0x04: set_flag(15); break; // *
-		default: break;
-  }
-}
-
 int chk_speed_valid(uint16_t speed) {
   return speed >= 50 && speed <= 170;
-}
-
-// TODO: make this secure
-uint8_t display_buffer[DISPLAY_BUFFER_MAX];
-
-uint8_t translate(uint8_t value){
-  switch(value){
-    case 0: return 0xfc;
-    case 1: return 0x0c;
-    case 2: return 0xda;
-    case 3: return 0xf2;
-    case 4: return 0x66;
-    case 5: return 0xb6;
-    case 6: return 0xbe;
-    case 7: return 0xe0;
-    case 8: return 0xfe;
-    case 9: return 0xe6;
-  }
-  return 0;
-}
-
-void analyze_display(){
-  if(get_flag() <= 9){
-    // normally
-    int speed_buffer = get_speed_buffer();
-    int length = 0;
-    while(speed_buffer > 0){
-      length ++;
-      speed_buffer /= 10;
-    }
-    speed_buffer = get_speed_buffer();
-    for(int i = 0; i < length; i ++){
-      display_buffer[length - i - 1] = translate(speed_buffer % 10);
-      speed_buffer /= 10;
-    }
-  }
-  else{
-    for(int i = 0; i < DISPLAY_BUFFER_MAX; i++){
-      display_buffer[0] = 0;
-    }
-  }
-}
-
-void display(){
-  //TODO: if number pressed, display it; if '#' pressed, clean display; if others pressed do nothing
-  analyze_display();
-  I2C_ZLG7290_Write(&hi2c1, 0x70, 0x10, display_buffer, DISPLAY_BUFFER_MAX);
-}
-
-void switch_flag(void){
-  uint8_t flag = get_flag();
-  if (get_receiving()) { // receiving user input.
-    if (flag <= 9) {
-      update_speed_buffer();
-      printf("Receiving... (%d)\r\n", get_speed_buffer());
-    } else if (flag == 14) { // commit
-      if(chk_speed_valid(get_speed_buffer())){ // valid value
-        set_speed(get_speed_buffer());
-        printf("Commit! Change speed to %d.\r\n", get_speed());
-      } else{
-        printf("Invalid value: %d.\r\n", get_speed_buffer());
-      }
-      IWDG_Feed();
-			set_speed_buffer(0);
-      set_receiving(0);
-      printf("Finish receiving!\r\n");
-    } else {
-      printf("Commit Cancel! Finish receiving.\r\n");
-			set_speed_buffer(0);
-      set_receiving(0);
-    }
-    display();
-  } else {
-    switch (flag) {
-      case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
-      case 10: set_stop(1); printf("Pause music...\r\n"); break;
-      case 11: set_stop(0); printf("Continue music...\r\n"); break;
-      case 15: {
-        IWDG_Feed();
-        printf("-------------------------------------------------\r\n");
-        print_data();
-        printf("-------------------------------------------------\r\n");
-        break;
-      }
-      default: break;
-    }
-  }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -504,23 +376,32 @@ void loop_delay(int time){
   */
 void Error_Handler(int err)
 {
-  /* USER CODE BEGIN Error_Handler */
-  /* User can add his own implementation to report the HAL error return state */
   IWDG_Feed();
   printf("\n\r!! Error Handler !!\r\n");
-  if (err == 1) {
-    printf("@ It looks like all backups of mdb broken!\r\n");
-  } else if (err == 2) {
-    printf("@ It looks like all backups of cdb broken!\r\n");
-  } else if (err == 3) {
-    printf("@ HAL_Delay timeout!\r\n");
-  } else if (err == 4) {
-		printf("@ HAL_IWDG_Init failed!\r\n");
-	} else {
-    printf("@ Receive an error code: %d!\r\n", err);
+  switch (err) {
+    case MDB_DESTORY: {
+      printf("@ It looks like all backups of mdb broken!\r\n"); 
+      break;
+    }
+    case CDB_DESTORY: {
+      printf("@ It looks like all backups of cdb broken!\r\n");
+      break;
+    }
+    case DELAY_TIMEOUT: {
+      printf("@ HAL_Delay timeout!\r\n");
+      break;
+    }
+    case IWDG_INIT_ERROR: {
+      printf("@ HAL_IWDG_Init failed!\r\n");
+      break;
+    }
+    case DDB_DESTORY: {
+      printf("@ It looks like all backups of ddb broken!\r\n");
+      break;
+    }
+    default: break;
   }
-  while(1);
-  /* USER CODE END Error_Handler */ 
+  while(1); // loop to meet an hot boot
 }
 
 #ifdef USE_FULL_ASSERT
