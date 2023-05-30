@@ -374,7 +374,7 @@ void analyze_display(){
     // normally
     int speed_buffer = get_speed_buffer();
     for(int i = 0; i < DISPLAY_BUFFER_MAX; i ++){
-      display_buffer[DISPLAY_BUFFER_MAX - i] = speed_buffer % 10;
+      display_buffer[i] = translate(speed_buffer % 10);
       speed_buffer /= 10;
     }
   }
