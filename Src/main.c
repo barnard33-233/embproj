@@ -389,6 +389,11 @@ void analyze_display(){
     display_buffer[0] = 0;
     display_buffer[1] = 0;
     display_buffer[2] = 0;
+    display_buffer[3] = 0;
+    display_buffer[4] = 0;
+    display_buffer[5] = 0;
+    display_buffer[6] = 0;
+    display_buffer[7] = 0;
   }
 }
 
