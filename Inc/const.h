@@ -32,4 +32,13 @@ struct Note{
 	enum PITCH pitch;
 	enum DURATION duration; // per 1/32 note
 };
+
+// Error Numbers
+#define MDB_DESTORY 1
+#define CDB_DESTORY 2
+#define DELAY_TIMEOUT 3
+#define IWDG_INIT_ERROR 4
+#define BAD_READ_INPUT 5
+#define DDB_DESTORY 6
+
 #endif
