@@ -47,7 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
-#define DISPLAY_BUFFER_MAX 3
+#define DISPLAY_BUFFER_MAX 8
 #define MAX_FLAG1 3 // 开始输入，输入内容，停止输入，最长是5.
 
 const struct Note score[SCORE_LENGTH] = {
@@ -367,14 +367,21 @@ uint8_t translate(uint8_t value){
     case 8: return 0xfe;
     case 9: return 0xe6;
   }
+  return 0;
 }
 
 void analyze_display(){
   if(get_flag() <= 9){
     // normally
     int speed_buffer = get_speed_buffer();
-    for(int i = 0; i < DISPLAY_BUFFER_MAX; i ++){
-      display_buffer[i] = translate(speed_buffer % 10);
+    int length = 0;
+    while(speed_buffer > 0){
+      length ++;
+      speed_buffer /= 10;
+    }
+    speed_buffer = get_speed_buffer();
+    for(int i = 0; i < length; i ++){
+      display_buffer[length - i - 1] = translate(speed_buffer % 10);
       speed_buffer /= 10;
     }
   }
