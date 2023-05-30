@@ -158,7 +158,7 @@ void module_Music(void) {
   if(music_timer >= note_time){
     present_du = score[score_index].duration;
     present_pitch = score[score_index].pitch;
-    if (chk_speed_valid(get_speed())) {
+    if (!chk_speed_valid(get_speed())) {
       // ËÙ¶È¸´Ô­
       IWDG_Feed();
       printf("Bad speed value. You may under an attack.\r\n");
