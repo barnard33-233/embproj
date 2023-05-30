@@ -214,5 +214,6 @@ void plus_one_flag1(void) {
 void update_speed_buffer(void) {
   CDB *p = get_correct_cdb();
   p->speed_buffer = p->speed_buffer * 10 + p->flag;
+  p->chksum = get_chksum_cdb(p);
   CDB_UPD_ALL(speed_buffer, p->speed_buffer);
 }

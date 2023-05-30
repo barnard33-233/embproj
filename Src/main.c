@@ -88,7 +88,7 @@ void switch_flag(void);
 void HAL_delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
-void init_device(int);
+void init_device(void);
 void loop_delay(int time);
 void init_keyboard(void);
 void init_beep(void);
@@ -104,6 +104,7 @@ void module_Music(void);
 
 // 定期事件模块
 void module_TimeEvent(void) {
+  // 控制 music_timer 是否计数
   if (get_stop() == 1) enable_music = 0;
   else enable_music = 1;
   if (flush_timer /*get_flush_timer()*/ >= 40000) {
@@ -112,31 +113,48 @@ void module_TimeEvent(void) {
     // 同步所有备份数据
     IWDG_Feed();
     recover_backups();
+    // 初始化设备
+    IWDG_Feed();
     init_beep();
+    // init_keyboard();
+    // init_uart();
+    IWDG_Feed();
+    // printf("Fresh beep and backups...\r\n");
   }
 }
 
 // 按键处理模块
 void module_Input(void) {
   if (get_flag1() >= 1) {
-    if(get_flag1() >= MAX_FLAG1) { // 输入滤波
+    if(get_flag1() >= MAX_FLAG1) {
       IWDG_Feed();
       init_keyboard();
     }
-    uint8_t tmp_rx1 = 0;
+    uint8_t tmp_rx1 = 0, tmp_rx2 = 0, tmp_rx3 = 0;
     set_flag1(0);
     comp_flag = 0; // 序列完整性标志
     IWDG_Feed();
     I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
-    set_Rx1_Buffer(tmp_rx1);
     comp_flag |= 1;
     IWDG_Feed();
-    switch_key(); // 更新 flag 的值
+    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx2, 1);
     comp_flag |= 2;
+    if (tmp_rx2 != tmp_rx1) {
+      IWDG_Feed();
+      I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx3, 1);
+      if (tmp_rx1 == tmp_rx2) tmp_rx1 = tmp_rx1;
+      else if (tmp_rx1 == tmp_rx3) tmp_rx1 = tmp_rx3;
+      else if (tmp_rx2 == tmp_rx3) tmp_rx1 = tmp_rx2;
+      else Error_Handler(0);
+    }
+    set_Rx1_Buffer(tmp_rx1);
+    comp_flag |= 4;
+    IWDG_Feed();
     // 在输入与处理间添加随机时延
     loop_delay(rand() % 100);
-    if (comp_flag == 3) { 
+    if (comp_flag == 7) {
       IWDG_Feed();
+      switch_key(); // 更新 flag 的值 
       printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
       IWDG_Feed();
       switch_flag();
@@ -150,7 +168,7 @@ void module_Input(void) {
 
 void module_Music(void) {
   // 音符播放模块
-  if (enable_music == 0) return;
+  if (get_stop() == 1) return;
   uint32_t score_index = get_score_index();
   if(music_timer >= note_time - note_time/32){
     present_pitch = pause;
@@ -158,7 +176,7 @@ void module_Music(void) {
   if(music_timer >= note_time){
     present_du = score[score_index].duration;
     present_pitch = score[score_index].pitch;
-    if (chk_speed_valid(get_speed())) {
+    if (!chk_speed_valid(get_speed())) {
       // 速度复原
       IWDG_Feed();
       printf("Bad speed value. You may under an attack.\r\n");
@@ -189,8 +207,9 @@ int main(void)
   // delay when cold boot
   if (hot == 0) loop_delay(1000);
 
-  init_device(hot);
-
+  init_device();
+  IWDG_Start();
+  
   IWDG_Feed();
   if (hot == 1) printf("A hot booting... \r\n");
   printf("-------------------------------------------------\r\n");
@@ -257,7 +276,7 @@ void SystemClock_Config(void)
 
 }
 
-void init_device(int hot) {
+void init_device(void) {
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
   /* Configure the system clock */
@@ -356,10 +375,16 @@ void switch_flag(void){
     }
   } else {
     switch (flag) {
-      case 14: set_receiving(1); break;
-      case 10: set_stop(1); break;
-      case 11: set_stop(0); break;
-      case 15: print_data(); break;
+      case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
+      case 10: set_stop(1); printf("Pause music...\r\n"); break;
+      case 11: set_stop(0); printf("Continue music...\r\n"); break;
+      case 15: {
+        IWDG_Feed();
+        printf("-------------------------------------------------\r\n");
+        print_data();
+        printf("-------------------------------------------------\r\n");
+        break;
+      }
       default: break;
     }
   }
