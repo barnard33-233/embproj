@@ -13,6 +13,9 @@ CDB cdb0;
 CDB __BACKUP_ONE__ cdb1;
 CDB __BACKUP_TWO__ cdb2;
 
+MDB *pmdb = NULL;
+CDB *pcdb = NULL;
+
 extern void Error_Handler(int err);
 
 uint32_t get_chksum_mdb(MDB *p) {
@@ -59,6 +62,7 @@ int restore_data(void) {
     init_mdb0();
     mdb1 = mdb2 = mdb0;
   }
+  pmdb = &mdb0;
   // restore timer
   // if (check_data((uint8_t *)&tdb1, sizeof(TDB)) == 0) {
   //   tdb0 = tdb2 = tdb1;
@@ -79,6 +83,7 @@ int restore_data(void) {
     init_cdb0();
     cdb1 = cdb2 = cdb0;
   }
+  pcdb = &cdb0;
   return hot;
 }
 
@@ -92,6 +97,7 @@ void recover_backups(void) {
   } else {
     Error_Handler(1);
   }
+  pmdb = &mdb0;
   if (get_chksum_cdb(&cdb0) == cdb0.chksum) {
     cdb1 = cdb2 = cdb0;
   } else if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
@@ -101,20 +107,31 @@ void recover_backups(void) {
   } else {
     Error_Handler(2);
   }
+  pcdb = &cdb0;
 }
 
 MDB* get_correct_mdb(void) {
-  if (get_chksum_mdb(&mdb0) == mdb0.chksum) return &mdb0;
-  if (get_chksum_mdb(&mdb1) == mdb1.chksum) return &mdb1;
-  if (get_chksum_mdb(&mdb2) == mdb2.chksum) return &mdb2;
+  if (pmdb != NULL && get_chksum_mdb(pmdb) == pmdb->chksum)
+    return pmdb;
+  if (get_chksum_mdb(&mdb0) == mdb0.chksum) 
+    return pmdb = &mdb0;
+  if (get_chksum_mdb(&mdb1) == mdb1.chksum)
+    return pmdb = &mdb1;
+  if (get_chksum_mdb(&mdb2) == mdb2.chksum) 
+    return pmdb = &mdb2;
   Error_Handler(1);
   return NULL;
 }
 
 CDB* get_correct_cdb(void) {
-  if (get_chksum_cdb(&cdb0) == cdb0.chksum) return &cdb0;
-  if (get_chksum_cdb(&cdb1) == cdb1.chksum) return &cdb1;
-  if (get_chksum_cdb(&cdb2) == cdb2.chksum) return &cdb2;
+  if (pcdb != NULL && get_chksum_cdb(pcdb) == pcdb->chksum)
+    return pcdb;
+  if (get_chksum_cdb(&cdb0) == cdb0.chksum)
+    return pcdb = &cdb0;
+  if (get_chksum_cdb(&cdb1) == cdb1.chksum)
+    return pcdb = &cdb1;
+  if (get_chksum_cdb(&cdb2) == cdb2.chksum)
+    return pcdb = &cdb2;
   Error_Handler(2);
   return NULL;
 }
@@ -244,4 +261,13 @@ void set_flag(uint8_t _new) {
 }
 void set_speed_buffer(uint16_t _new) {
   UPDATE_CDB(speed_buffer);
+}
+
+void plus_flag1(void) {
+  CDB *p = get_correct_cdb();
+  p->flag1 ++;
+  p->chksum = get_chksum_cdb(p);
+  cdb0.flag1 = p->flag1, cdb0.chksum = p->chksum;
+  cdb1.flag1 = p->flag1, cdb1.chksum = p->chksum;
+  cdb2.flag1 = p->flag1, cdb2.chksum = p->chksum;
 }
