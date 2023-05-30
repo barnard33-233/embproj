@@ -55,7 +55,7 @@ void I2C_ZLG7290_Write(I2C_HandleTypeDef *I2Cx,uint8_t I2C_Addr,uint8_t addr,uin
 	while(num--)
 	{
     I2C_ZLG7290_WriteOneByte(I2Cx, I2C_Addr,addr++,*buf++);
-		HAL_Delay(5);
+		HAL_Delay(50);
 	}
 }
 
