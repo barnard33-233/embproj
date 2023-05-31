@@ -45,6 +45,10 @@
 #include "IWDG.h"
 
 #define DEBUG_TEST_DURING
+
+#define DURING_TIME_EVENT 40
+#define DURING_REFRESH_RAM 20
+#define DURING_REFRESH_TUBE 430
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
@@ -127,7 +131,7 @@ void module_TimeEvent(void) {
   } else {
     // 模块后的 Delay 都是为了稳定波形
     // rand() 是因为上面的代码执行时间一定存在波动
-    HAL_Delay(40 + rand() % 10);
+    HAL_Delay(DURING_TIME_EVENT + rand() % 10);
   }
 }
 
@@ -189,7 +193,7 @@ void refresh_Display(void) {
     printf("refresh display: %d\r\n", e - t);
 #endif
   } else {
-    HAL_Delay(20 + rand() % 10);
+    HAL_Delay(DURING_REFRESH_RAM + rand() % 10);
   }
 }
 
@@ -221,7 +225,7 @@ void do_Display(void) {
     printf("do display: %d\r\n", e - t);
 #endif
   } else {
-    HAL_Delay(420 + rand() % 20);
+    HAL_Delay(DURING_REFRESH_TUBE + rand() % 10);
   }
 }
 
