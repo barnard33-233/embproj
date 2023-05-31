@@ -108,16 +108,16 @@ void module_TimeEvent(void) {
   if (flush_timer /*get_flush_timer()*/ >= 100000) {
     // 定时事件 每 100 ms
     flush_timer = 0; // reset_flush_timer();
-    // 重新刷新设备,引脚,中断标志位
-    IWDG_Feed();
-    init_keyboard();
+    // 重新刷新蜂鸣器的引脚和中断标志位
+    // IWDG_Feed();
+    // init_keyboard();
     IWDG_Feed();
     init_beep();
-    init_uart();
-    IWDG_Feed();
-    init_i2c();
+    // init_uart();
+    // IWDG_Feed();
+    // init_i2c();
+    // 设置时间中断为开
     __HAL_RCC_PWR_CLK_ENABLE();
-    HAL_Delay(100);
   }
 }
 
