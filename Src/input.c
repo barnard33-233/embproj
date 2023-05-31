@@ -5,6 +5,7 @@
 #include "i2c.h"
 #include "usart.h"
 #include "zlg7290.h"
+#include "const.h"
 
 #define MAX_FLAG1 3
 
@@ -13,6 +14,8 @@ extern void loop_delay(int time);
 extern void init_keyboard(void);
 extern void print_data(void);
 extern void HAL_Delay(__IO uint32_t delay);
+
+int keyerror_cnt = 0;
 
 void switch_key(void) { // 扫描码转数字
   switch (get_Rx1_Buffer()) {
@@ -75,50 +78,81 @@ void switch_flag(void){
   }
 }
 
+int read_key(uint8_t *tmp) {
+  int c = 0;
+  *tmp = 0;
+  while (*tmp > 0x1e || *tmp == 0) {
+    if (c++ > 2) {
+      *tmp = 0;
+      return 1; // 扰动过大，放弃读入
+    }
+    IWDG_Feed();
+    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, tmp, 1);
+  }
+  return 0;
+}
+
+uint8_t input_filter(void) {
+  uint8_t tmp_rx1 = 0, tmp_rx2 = 0, tmp_rx3 = 0;
+  int comp_flag = 0, bad_c = 0; // 序列完整性标志
+  // 第一次读入
+  if (read_key(&tmp_rx1) != 0) bad_c++;
+  comp_flag ++;
+  // 第二次读入
+  if (read_key(&tmp_rx2) != 0) bad_c++;
+  comp_flag ++;
+  // 失败次数大于 2，放弃本次输入并累计错误次数
+  if (bad_c >= 2) return keyerror_cnt ++, 0;
+  // 第三次读入
+  if (read_key(&tmp_rx3) != 0) bad_c++;
+  comp_flag ++;
+  if (bad_c >= 2) return keyerror_cnt ++, 0;
+  // 代码前序检查
+  if (comp_flag != 3) {
+    printf("You may under an attack! Input abort!\r\n");
+    return 0;
+  }
+  // 取众数
+  uint8_t res = 0;
+  if (tmp_rx1 == tmp_rx2) res = tmp_rx1;
+  else if (tmp_rx1 == tmp_rx3) res = tmp_rx1;
+  else if (tmp_rx2 == tmp_rx3) res = tmp_rx2;
+  // 三次读入不同时累计错误次数
+  keyerror_cnt += (res == 0 ? 1 : 0); 
+  // 返回滤波结果
+  return res;
+}
+
 // 按键处理模块
 void module_Input(void) {
-  if (get_flag1() >= 1) {
+  // 如果因为错误被忽略的事件过多 重置 I2C 和键盘引脚
+  if (keyerror_cnt > 3) {
+		Error_Handler(I2C_BADSTATE);
+		return;
+	}
+  if (get_flag1() != 0) {
+    // 累计的中断过多
     if(get_flag1() >= MAX_FLAG1) {
-      IWDG_Feed();
-      init_keyboard();
-			set_flag1(0);
+			Error_Handler(TOO_MANY_FLAG1);
 			return;
-    }
-    uint8_t tmp_rx1 = 0, tmp_rx2 = 0, tmp_rx3 = 0;
+		}
+    // 睡眠 2ms 来减少扰动
+    HAL_Delay(2000);
     set_flag1(0);
-    int comp_flag = 0; // 序列完整性标志
+    // 获取输入
+    uint8_t tmp = input_filter();
+    if (tmp == 0) return; // 无效输入直接忽略
+    // 将数据写入备份中
     IWDG_Feed();
-    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
-    comp_flag |= 1;
-    IWDG_Feed();
-    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx2, 1);
-    comp_flag |= 2;
-    if (tmp_rx2 != tmp_rx1) {
-      IWDG_Feed();
-      I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx3, 1);
-      if (tmp_rx1 == tmp_rx2) tmp_rx1 = tmp_rx1;
-      else if (tmp_rx1 == tmp_rx3) tmp_rx1 = tmp_rx3;
-      else if (tmp_rx2 == tmp_rx3) tmp_rx1 = tmp_rx2;
-      else Error_Handler(5);
-    }
-    set_Rx1_Buffer(tmp_rx1);
-    comp_flag |= 4;
-    IWDG_Feed();
+    set_Rx1_Buffer(tmp);
     // 在输入与处理间添加随机时延
     loop_delay(rand() % 100);
-    if (comp_flag == 7) {
-      IWDG_Feed();
-      switch_key(); // 更新 flag 的值 
-      printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
-      IWDG_Feed();
-      switch_flag();
-    } else {
-      // 不等于 3 意味着攻击者跳过了前面的语句
-      IWDG_Feed();
-      printf("You may under an attack. Input Abort.\r\n");
-    }
-  } else {
-    // do noting
-    HAL_Delay(rand() % 20 + 100);
+    // 将获取的扫描码与数字对应起来
+    IWDG_Feed();
+    switch_key();
+    printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
+    // 针对不同的 flag 做出不同的处理
+    IWDG_Feed();
+    switch_flag();
   }
 }
