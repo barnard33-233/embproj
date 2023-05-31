@@ -304,9 +304,6 @@ void init_uart(void) {
 
 void init_i2c(void) {
   MX_I2C1_Init();
-  __I2C1_FORCE_RESET();
-  loop_delay(10);
-  __I2C1_RELEASE_RESET();
 }
 
 /*__STATIC_INLINE void disable_SysTick(void) {

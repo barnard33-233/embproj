@@ -78,7 +78,9 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
     GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    
+
+    __I2C1_FORCE_RESET();
+    __I2C1_RELEASE_RESET();
   }
 }
 
