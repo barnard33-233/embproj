@@ -156,7 +156,7 @@ void module_Music(void) {
     HAL_Delay(present_pitch);
     IWDG_Feed();
     HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
-    HAL_Delay(present_pitch - 50); // –ﬁ“Ù
+    HAL_Delay(present_pitch - 570); // –ﬁ“Ù
   }
 }
 
