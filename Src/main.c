@@ -111,8 +111,10 @@ void module_TimeEvent(void) {
     // 重新刷新设备,引脚,中断标志位
     IWDG_Feed();
     init_keyboard();
+    IWDG_Feed();
     init_beep();
     init_uart();
+    IWDG_Feed();
     init_i2c();
     __HAL_RCC_PWR_CLK_ENABLE();
   }
@@ -424,6 +426,7 @@ void Error_Handler(int err)
     }
     case I2C_BADSTATE: {
       printf("@ Maybe something wrong with I2C!\r\n");
+      IWDG_Feed();
       GPIO_Init_Keyboard();
       init_i2c();
       return;
