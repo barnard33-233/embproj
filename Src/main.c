@@ -109,16 +109,16 @@ void module_TimeEvent(void) {
     // 定时事件 每 100 ms
     flush_timer = 0; // reset_flush_timer();
     // 重新刷新蜂鸣器的引脚和中断标志位
+    // 串口的刷新和 I2C 的刷新不在这里
     IWDG_Feed();
     init_keyboard();
     IWDG_Feed();
     init_beep();
-    // init_uart();
-    // IWDG_Feed();
-    // reinit_i2c();
     // 设置时间中断为开
     __HAL_RCC_PWR_CLK_ENABLE();
   } else {
+    // 模块后的 Delay 都是为了稳定波形
+    // rand() 是因为上面的代码执行时间一定存在波动
     HAL_Delay(40 + rand() % 10);
   }
 }
@@ -179,6 +179,7 @@ void refresh_Display(void) {
 }
 
 void do_Display(void) {
+  // TODO: 我想到了一个完美解决 I2C 刷新问题的方法
   // 往数码管的显示缓冲区写一个字节
   static int last_fresh = -1, badc = 0;
   // 每 50ms 进行一次
@@ -192,9 +193,8 @@ void do_Display(void) {
       badc = 0;
     } else {
       badc++;
-      if (badc > 2) {
-        Error_Handler(I2C_BADSTATE);
-      }
+      // 如果已经有多次写入失败，调用 Error_Handler 进行 I2C 重置
+      if (badc > 2) Error_Handler(I2C_BADSTATE);
     }
     HAL_Delay(5);
     last_fresh = flush_timer / 50000;
@@ -233,6 +233,7 @@ int main(void)
   while (1)
   {
     // 随机乱序执行各个模块
+    // 音乐模块总是放在最后，是为了利用相对固定前面的事件时延，确保模拟波形稳定
 		int t = rand() % 3;
     if (t == 0) {
       refresh_Display();
@@ -349,6 +350,7 @@ int fputc(int ch, FILE *f)
 { 
   uint8_t tmp[1]={0}, c = 0;
 	tmp[0] = (uint8_t)ch;
+  // 10000 对应 timeout = 10ms
 	while (HAL_OK != HAL_UART_Transmit(&huart1, tmp, 1, 10000)) {
     c++;
     if (c == 2) init_uart();
@@ -379,6 +381,7 @@ void HAL_Delay(__IO uint32_t delay) {
   uint32_t count = 0;
   now = past = start = HAL_GetTick();
   end = start + delay;
+  // 处理了 HAL_GetTick 翻转的可能
   while( (end < start && (now >= start || now <= end)) || (start <= end && (now >= start && now <= end))) {
     // feed IWDG
     IWDG_Feed();

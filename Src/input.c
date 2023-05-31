@@ -41,22 +41,31 @@ void switch_key(void) { // 扫描码转数字
 
 void switch_flag(void){
   uint8_t flag = get_flag();
-  if (get_receiving()) { // receiving user input.
+  // receiving 标记位非 0 表示当前处于接收用户输入的状态
+  if (get_receiving()) {
     if (flag <= 9) {
+      // flag 为 0 到 9 意味着用户还在输入
+      // 更新 speed_buffer = speed_buffer * 10 + flag
+      // 在 bak 模块封装了专门的更新函数而不是 get 完算完再 set 回去
       update_speed_buffer();
       printf("Receiving... (%d)\r\n", get_speed_buffer());
-    } else if (flag == 14) { // commit
-      if(chk_speed_valid(get_speed_buffer())){ // valid value
+    } else if (flag == 14) {
+      // flag 为 # 意味着用户试图提交输入
+      if(chk_speed_valid(get_speed_buffer())){
+        // 不合法的输入不会被接收
+        // 万一 if 被跳过，在 music 模块中也会进行检查和重置
         set_speed(get_speed_buffer());
         printf("Commit! Change speed to %d.\r\n", get_speed());
-      } else{
+      } else {
         printf("Invalid value: %d.\r\n", get_speed_buffer());
       }
+      // 重置 receiving 标志位和缓冲区
       IWDG_Feed();
       set_speed_buffer(0);
       set_receiving(0);
       printf("Finish receiving!\r\n");
     } else {
+      // 输入非数字和 # 值则取消
       printf("Commit Cancel! Finish receiving.\r\n");
       set_speed_buffer(0);
       set_receiving(0);
@@ -141,11 +150,15 @@ void module_Input(void) {
     set_flag1(0);
     // 获取输入
     uint8_t tmp = input_filter();
-    if (tmp == 0) return; // 无效输入直接忽略
+    // 无效输入直接忽略
+    if (tmp == 0) return;
     // 将数据写入备份中
     IWDG_Feed();
     set_Rx1_Buffer(tmp);
     // 在输入与处理间添加随机时延
+    // 数码管的写入本身与是否有输入是没有关系的，我们并不认为攻击者能通过数码管的写入来推断什么
+    // 但是暂停位的设置与输入间的关系是确定的，它会明确反馈在蜂鸣器的电位变化上
+    // 因此，这个随机时延是必要的，可以隐藏键盘中断到音乐暂停间的关系
     loop_delay(rand() % 100);
     // 将获取的扫描码与数字对应起来
     IWDG_Feed();

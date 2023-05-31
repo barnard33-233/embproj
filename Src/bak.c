@@ -13,8 +13,11 @@ DDB ddb0;
 DDB __BACKUP_ONE__ ddb1;
 DDB __BACKUP_TWO__ ddb2;
 
+// TODO: 封装一个 reset_xxx(void) 函数用于置 0
+
 extern void Error_Handler(int err);
 
+// 计算 checksum
 uint32_t get_chksum_mdb(MDB *p) {
   return (uint32_t)(p->score_index << 24lu) + (p->speed << 16lu) + (p->stop << 8lu) + 233lu;
 }
@@ -28,13 +31,13 @@ uint32_t get_chksum_ddb(DDB *p) {
   return p->dat.v[0] ^ (p->dat.v[1] >> 3lu) ^ (p->dat.v[1] << 29lu) ^ 0xffff;
 }
 
+// 下面的三个 init 用于冷启动的初始化
 __STATIC_INLINE void init_mdb0(void) {
   mdb0.speed = 120;
   mdb0.score_index = 0;
   mdb0.stop = 0;
   mdb0.chksum = get_chksum_mdb(&mdb0);
 }
-
 __STATIC_INLINE void init_cdb0(void) {
   cdb0.flag1 = 0;
   cdb0.Rx1_Buffer = 0;
@@ -44,7 +47,6 @@ __STATIC_INLINE void init_cdb0(void) {
   cdb0.disp_i = 0;
   cdb0.chksum = get_chksum_cdb(&cdb0);
 }
-
 __STATIC_INLINE void init_ddb0(void) {
   ddb0.dat.v[0] = 0;
   ddb0.dat.v[1] = 0;
@@ -52,6 +54,7 @@ __STATIC_INLINE void init_ddb0(void) {
 }
 
 int restore_data(void) {
+  // 如果没有从内存中恢复到任何有效数据 证明这是冷启动
   int hot = 0;
   // restore music data
   if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
@@ -89,7 +92,9 @@ int restore_data(void) {
   return hot;
 }
 
-void recover_mdbs(void) {
+// recover 系列的函数用于定时事件
+// 就算没有 get 和 set 的时候也要定时检查
+void recover_mdbs(void) {  
   if (get_chksum_mdb(&mdb0) == mdb0.chksum) {
     mdb1 = mdb2 = mdb0;
   } else if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
@@ -100,7 +105,6 @@ void recover_mdbs(void) {
     Error_Handler(MDB_DESTORY);
   }
 }
-
 void recover_cdbs(void) {
   if (get_chksum_cdb(&cdb0) == cdb0.chksum) {
     cdb1 = cdb2 = cdb0;
@@ -112,7 +116,6 @@ void recover_cdbs(void) {
     Error_Handler(CDB_DESTORY);
   }
 }
-
 void recover_ddbs(void) {
   if (get_chksum_ddb(&ddb0) == ddb0.chksum) {
     ddb1 = ddb2 = ddb0;
@@ -124,13 +127,14 @@ void recover_ddbs(void) {
     Error_Handler(DDB_DESTORY);
   }
 }
-
 void recover_backups(void) {
   recover_mdbs();
   recover_cdbs();
   recover_ddbs();
 }
 
+// 下面的函数会校验三个备份 并选出可靠的数据来源
+// TODO: 可以补充一下 Error_Handler
 MDB* get_correct_mdb(void) {
   if (get_chksum_mdb(&mdb0) == mdb0.chksum) 
     return &mdb0;
@@ -141,7 +145,6 @@ MDB* get_correct_mdb(void) {
   Error_Handler(MDB_DESTORY);
   return NULL;
 }
-
 CDB* get_correct_cdb(void) {
   if (get_chksum_cdb(&cdb0) == cdb0.chksum)
     return &cdb0;
@@ -152,7 +155,6 @@ CDB* get_correct_cdb(void) {
   Error_Handler(CDB_DESTORY);
   return NULL;
 }
-
 DDB* get_correct_ddb(void) {
   if (get_chksum_ddb(&ddb0) == ddb0.chksum)
     return &ddb0;
@@ -258,6 +260,7 @@ void set_speed_buffer(uint16_t _new) {
   CDB_UPD_VALUE(speed_buffer, _new);
   CDB_UPD_ALL(speed_buffer, p->speed_buffer);
 }
+// 封装除了 set 以外的函数用于常用的操作是为了避免传参带来的出错可能
 void plus_one_flag1(void) {
   CDB_PLUS_VALUE(flag1, 1);
   CDB_UPD_ALL(flag1, p->flag1);

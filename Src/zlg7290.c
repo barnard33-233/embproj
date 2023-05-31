@@ -35,11 +35,12 @@ void I2C_ZLG7290_Read(I2C_HandleTypeDef *I2Cx,uint8_t I2C_Addr,uint8_t addr,uint
 * Return         : 
 * Attention      : None
 *******************************************************************************/
-
+// 我们修改了这个函数 使其具有返回值
 int I2C_ZLG7290_WriteOneByte(I2C_HandleTypeDef *I2Cx,uint8_t I2C_Addr,uint8_t addr,uint8_t value)
 {   
 	int c = 0;
 	while( HAL_I2C_Mem_Write(I2Cx, I2C_Addr, addr, I2C_MEMADD_SIZE_8BIT, &value, 0x01, I2CTimeout) != HAL_OK ){ 
+		// 无论是超时 Busy 还是 Error 都是不合理的
 		c++;
 		if (c > 2) return 1; 
 	}
@@ -54,7 +55,7 @@ int I2C_ZLG7290_WriteOneByte(I2C_HandleTypeDef *I2Cx,uint8_t I2C_Addr,uint8_t ad
 * Return         : 
 * Attention      : None
 *******************************************************************************/
-
+// 这个函数我们没有使用
 void I2C_ZLG7290_Write(I2C_HandleTypeDef *I2Cx,uint8_t I2C_Addr,uint8_t addr,uint8_t *buf,uint8_t num)
 {
 	while(num--)
