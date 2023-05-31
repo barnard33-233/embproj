@@ -90,7 +90,7 @@ void loop_delay(int time);
 void init_keyboard(void);
 void init_beep(void);
 void init_uart(void);
-void init_i2c(void);
+void reinit_i2c(void);
 int chk_speed_valid(uint16_t speed);
 
 void module_TimeEvent(void);
@@ -109,13 +109,13 @@ void module_TimeEvent(void) {
     // 定时事件 每 100 ms
     flush_timer = 0; // reset_flush_timer();
     // 重新刷新蜂鸣器的引脚和中断标志位
-    // IWDG_Feed();
-    // init_keyboard();
+    IWDG_Feed();
+    init_keyboard();
     IWDG_Feed();
     init_beep();
     // init_uart();
     // IWDG_Feed();
-    // init_i2c();
+    // reinit_i2c();
     // 设置时间中断为开
     __HAL_RCC_PWR_CLK_ENABLE();
   }
@@ -303,7 +303,8 @@ void init_uart(void) {
   MX_USART1_UART_Init();
 }
 
-void init_i2c(void) {
+void reinit_i2c(void) {
+  HAL_I2C_DeInit(&hi2c1);
   MX_I2C1_Init();
 }
 
@@ -426,7 +427,7 @@ void Error_Handler(int err)
       printf("@ Maybe something wrong with I2C!\r\n");
       IWDG_Feed();
       GPIO_Init_Keyboard();
-      init_i2c();
+      reinit_i2c();
       return;
     }
     case BAD_READ_INPUT: {
