@@ -187,7 +187,7 @@ void do_Display(void) {
       badc = 0;
     } else {
       badc++;
-      if (badc > 10) {
+      if (badc > 2) {
         Error_Handler(I2C_BADSTATE);
       }
     }

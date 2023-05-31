@@ -41,7 +41,7 @@ int I2C_ZLG7290_WriteOneByte(I2C_HandleTypeDef *I2Cx,uint8_t I2C_Addr,uint8_t ad
 	int c = 0;
 	while( HAL_I2C_Mem_Write(I2Cx, I2C_Addr, addr, I2C_MEMADD_SIZE_8BIT, &value, 0x01, I2CTimeout) != HAL_OK ){ 
 		c++;
-		if (c > 3) return 1; 
+		if (c > 2) return 1; 
 	}
 	return 0;
 }
