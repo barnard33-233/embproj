@@ -115,7 +115,6 @@ void module_TimeEvent(void) {
     init_beep();
     // init_keyboard();
     // init_uart();
-    IWDG_Feed();
     // printf("Fresh beep and backups...\r\n");
   }
 }
@@ -156,24 +155,29 @@ void module_Music(void) {
 void refresh_Display(void) {
   // convert data to write buffer
   static int last_fresh = -1;
-  if (flush_timer / 23 != last_fresh) {
+  if (flush_timer / 2333 != last_fresh) {
     IWDG_Feed();
     update_disp_left();
     update_disp_right();
     update_disp_mid();
-    last_fresh = flush_timer / 233;
+    last_fresh = flush_timer / 2333;
   }
 }
 
 void do_Display(void) {
   // convert write buffer to i2c one by one
-  static int last_fresh = -1;
-  if (flush_timer / 133 != last_fresh) {
+  static int last_fresh = -1, badc = 0;
+  if (flush_timer / 5000 != last_fresh) {
     IWDG_Feed();
     uint8_t i = get_disp_i();
-    I2C_ZLG7290_WriteOneByte(&hi2c1, 0x70, 0x10 + i, get_disp_buf(i));
-    plus_one_disp_i();
-    last_fresh = flush_timer / 133;
+    if (I2C_ZLG7290_WriteOneByte(&hi2c1, 0x70, 0x10 + i, get_disp_buf(i)) == 0) {
+      plus_one_disp_i();
+      badc = 0;
+    } else if (badc > 10) {
+      printf("Bad I2C state. Reset it.\r\n");
+      MX_I2C1_Init();
+    }
+    last_fresh = flush_timer / 5000;
   }
 }
 
@@ -196,6 +200,8 @@ int main(void)
   print_data();
 	printf("-------------------------------------------------\r\n");
 
+  refresh_Display();
+
   /* Infinite loop */
   while (1)
   {
@@ -207,9 +213,7 @@ int main(void)
       do_Display();
       module_Music();
       module_Input();
-      do_Display();
     } else if (t == 1) {
-      do_Display();
       module_Input();
       do_Display();
       module_Music();
@@ -219,7 +223,6 @@ int main(void)
       module_Input();
       refresh_Display();
       module_Music();
-      do_Display();
       do_Display();
       module_TimeEvent();
     }
@@ -362,7 +365,7 @@ void HAL_delay(__IO uint32_t delay) {
     if (now == past) {
       // 如果 now 在 20 次循环后仍然没有变化
       // 说明定时器出错
-      if (++count > 20) Error_Handler(3);
+      if (++count > 20) Error_Handler(DELAY_TIMEOUT);
     } else {
       past = now, count = 0;
     }
@@ -403,7 +406,14 @@ void Error_Handler(int err)
       printf("@ It looks like all backups of ddb broken!\r\n");
       break;
     }
-    default: break;
+    case I2C_BADSTATE: {
+      printf("@ Maybe something wrong with I2C!\r\n");
+      break;
+    }
+    default: {
+      printf("@ Receive an error code: %d\r\n", err);
+      break;
+    }
   }
   while(1); // loop to meet an hot boot
 }
