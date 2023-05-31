@@ -105,8 +105,8 @@ void module_TimeEvent(void) {
   // 控制 music_timer 是否计数
   if (get_stop() == 1) enable_music = 0;
   else enable_music = 1;
-  if (flush_timer /*get_flush_timer()*/ >= 40000) {
-    // 定时事件 每 40 ms
+  if (flush_timer /*get_flush_timer()*/ >= 100000) {
+    // 定时事件 每 100 ms
     flush_timer = 0; // reset_flush_timer();
     // 重新刷新设备,引脚,中断标志位
     IWDG_Feed();
@@ -160,8 +160,8 @@ void module_Music(void) {
 void refresh_Display(void) {
   // 刷新需要显示的值 (保存在备份中的 buf)
   static int last_fresh = -1;
-  // 每 2333us 刷新一次显示值
-  if (flush_timer / 2333 != last_fresh) {
+  // 每 23ms 刷新一次显示值
+  if (flush_timer / 23333 != last_fresh) {
     IWDG_Feed();
     // 左侧显示速度
     update_disp_left();
@@ -169,15 +169,15 @@ void refresh_Display(void) {
     update_disp_right();
     // 中间显示开关状态
     update_disp_mid();
-    last_fresh = flush_timer / 2333;
+    last_fresh = flush_timer / 23333;
   }
 }
 
 void do_Display(void) {
   // 往数码管的显示缓冲区写一个字节
   static int last_fresh = -1, badc = 0;
-  // 每 5ms 进行一次
-  if (flush_timer / 5000 != last_fresh) {
+  // 每 50ms 进行一次
+  if (flush_timer / 50000 != last_fresh) {
     IWDG_Feed();
     // 获取当前需要显示的是第几个数码管
     uint8_t i = get_disp_i();
@@ -192,7 +192,7 @@ void do_Display(void) {
       }
     }
     HAL_Delay(5);
-    last_fresh = flush_timer / 5000;
+    last_fresh = flush_timer / 50000;
   }
 }
 
