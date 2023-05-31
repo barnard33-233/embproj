@@ -44,6 +44,7 @@
 #include "bak.h"
 #include "IWDG.h"
 
+#define DEBUG_TEST_DURING
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
@@ -105,9 +106,12 @@ void module_TimeEvent(void) {
   // 控制 music_timer 是否计数
   if (get_stop() == 1) enable_music = 0;
   else enable_music = 1;
-  if (flush_timer /*get_flush_timer()*/ >= 100000) {
-    // 定时事件 每 100 ms
-    flush_timer = 0; // reset_flush_timer();
+  // 定时事件 每 100 ms
+  if (flush_timer >= 100000) {
+#ifdef DEBUG_TEST_DURING
+    int t = HAL_GetTick(), e;
+#endif
+    flush_timer = 0;
     // 重新刷新蜂鸣器的引脚和中断标志位
     // 串口的刷新和 I2C 的刷新不在这里
     IWDG_Feed();
@@ -116,6 +120,10 @@ void module_TimeEvent(void) {
     init_beep();
     // 设置时间中断为开
     __HAL_RCC_PWR_CLK_ENABLE();
+#ifdef DEBUG_TEST_DURING
+    e = HAL_GetTick();
+    printf("flush devices: %d\r\n", e - t);
+#endif
   } else {
     // 模块后的 Delay 都是为了稳定波形
     // rand() 是因为上面的代码执行时间一定存在波动
@@ -165,6 +173,9 @@ void refresh_Display(void) {
   static int last_fresh = -1;
   // 每 23ms 刷新一次显示值
   if (flush_timer / 23333 != last_fresh) {
+#ifdef DEBUG_TEST_DURING
+    int t = HAL_GetTick(), e;
+#endif
     IWDG_Feed();
     // 左侧显示速度
     update_disp_left();
@@ -173,6 +184,10 @@ void refresh_Display(void) {
     // 中间显示开关状态
     update_disp_mid();
     last_fresh = flush_timer / 23333;
+#ifdef DEBUG_TEST_DURING
+    e = HAL_GetTick();
+    printf("refresh display: %d\r\n", e - t);
+#endif
   } else {
     HAL_Delay(20 + rand() % 10);
   }
@@ -184,6 +199,9 @@ void do_Display(void) {
   static int last_fresh = -1, badc = 0;
   // 每 50ms 进行一次
   if (flush_timer / 50000 != last_fresh) {
+#ifdef DEBUG_TEST_DURING
+    int t = HAL_GetTick(), e;
+#endif
     IWDG_Feed();
     // 获取当前需要显示的是第几个数码管
     uint8_t i = get_disp_i();
@@ -198,6 +216,10 @@ void do_Display(void) {
     }
     HAL_Delay(5);
     last_fresh = flush_timer / 50000;
+#ifdef DEBUG_TEST_DURING
+    e = HAL_GetTick();
+    printf("do display: %d\r\n", e - t);
+#endif
   } else {
     HAL_Delay(420 + rand() % 20);
   }
