@@ -117,6 +117,7 @@ void module_TimeEvent(void) {
     IWDG_Feed();
     init_i2c();
     __HAL_RCC_PWR_CLK_ENABLE();
+    HAL_Delay(100);
   }
 }
 
