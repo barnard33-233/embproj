@@ -452,7 +452,7 @@ void Error_Handler(int err)
       printf("@ Flag1 too large!\r\n");
       IWDG_Feed();
       init_keyboard();
-      set_flag1(0);
+      set_zero_flag1();
       return;
     }
     default: {

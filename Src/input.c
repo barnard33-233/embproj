@@ -61,20 +61,20 @@ void switch_flag(void){
       }
       // 重置 receiving 标志位和缓冲区
       IWDG_Feed();
-      set_speed_buffer(0);
-      set_receiving(0);
+      set_zero_speed_buffer();
+      set_zero_receiving();
       printf("Finish receiving!\r\n");
     } else {
       // 输入非数字和 # 值则取消
       printf("Commit Cancel! Finish receiving.\r\n");
-      set_speed_buffer(0);
-      set_receiving(0);
+      set_zero_speed_buffer();
+      set_zero_receiving();
     }
   } else {
     switch (flag) {
-      case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
-      case 10: set_stop(1); printf("Pause music...\r\n"); break;
-      case 11: set_stop(0); printf("Continue music...\r\n"); break;
+      case 14: set_one_receiving(); printf("Start receiving...\r\n"); break;
+      case 10: set_one_stop(); printf("Pause music...\r\n"); break;
+      case 11: set_zero_stop(); printf("Continue music...\r\n"); break;
       case 15: {
         IWDG_Feed();
         printf("-------------------------------------------------\r\n");
@@ -147,7 +147,7 @@ void module_Input(void) {
 		}
     // 睡眠 2ms 来减少扰动
     HAL_Delay(2000);
-    set_flag1(0);
+    set_zero_flag1();
     // 获取输入
     uint8_t tmp = input_filter();
     // 无效输入直接忽略

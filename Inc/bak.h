@@ -80,4 +80,12 @@ void update_disp_left(void);
 void update_disp_right(void);
 void update_disp_mid(void);
 
+void set_zero_speed_buffer(void);
+void set_zero_receiving(void);
+void set_zero_flag1(void);
+void set_zero_stop(void);
+
+void set_one_receiving(void);
+void set_one_stop(void);
+
 #endif

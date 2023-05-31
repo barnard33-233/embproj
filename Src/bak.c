@@ -134,7 +134,6 @@ void recover_backups(void) {
 }
 
 // 下面的函数会校验三个备份 并选出可靠的数据来源
-// TODO: 可以补充一下 Error_Handler
 MDB* get_correct_mdb(void) {
   if (get_chksum_mdb(&mdb0) == mdb0.chksum) 
     return &mdb0;
@@ -260,7 +259,11 @@ void set_speed_buffer(uint16_t _new) {
   CDB_UPD_VALUE(speed_buffer, _new);
   CDB_UPD_ALL(speed_buffer, p->speed_buffer);
 }
-// 封装除了 set 以外的函数用于常用的操作是为了避免传参带来的出错可能
+
+// 封装除了 set 以外的更新函数
+// 是为了避免多余的传参带来的出错可能
+// 当然 也可以直接把函数改成宏定义或 static inline
+
 void plus_one_flag1(void) {
   CDB_PLUS_VALUE(flag1, 1);
   CDB_UPD_ALL(flag1, p->flag1);
@@ -341,4 +344,30 @@ void update_disp_mid(void) {
   }
   p->chksum = get_chksum_ddb(p);
   ddb0 = ddb1 = ddb2 = *p;
+}
+
+void set_zero_speed_buffer(void) {
+  CDB_UPD_VALUE(speed_buffer, 0);
+  CDB_UPD_ALL(speed_buffer, p->speed_buffer);
+}
+void set_zero_receiving(void) {
+  CDB_UPD_VALUE(receiving, 0);
+  CDB_UPD_ALL(receiving, p->receiving);
+}
+void set_zero_flag1(void) {
+  CDB_UPD_VALUE(flag1, 0);
+  CDB_UPD_ALL(flag1, p->flag1);
+}
+void set_zero_stop(void) {
+  MDB_UPD_VALUE(stop, 0);
+  MDB_UPD_ALL(stop, p->stop);
+}
+
+void set_one_receiving(void) {
+  CDB_UPD_VALUE(receiving, 1);
+  CDB_UPD_ALL(receiving, p->receiving);
+}
+void set_one_stop(void) {
+  MDB_UPD_VALUE(stop, 1);
+  MDB_UPD_ALL(stop, p->stop);
 }
