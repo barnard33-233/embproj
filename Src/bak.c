@@ -142,7 +142,7 @@ MDB* get_correct_mdb(void) {
   if (get_chksum_mdb(&mdb2) == mdb2.chksum) 
     return &mdb2;
   Error_Handler(MDB_DESTORY);
-  return NULL;
+  return &mdb0;
 }
 CDB* get_correct_cdb(void) {
   if (get_chksum_cdb(&cdb0) == cdb0.chksum)
@@ -152,7 +152,7 @@ CDB* get_correct_cdb(void) {
   if (get_chksum_cdb(&cdb2) == cdb2.chksum)
     return &cdb2;
   Error_Handler(CDB_DESTORY);
-  return NULL;
+  return &cdb0;
 }
 DDB* get_correct_ddb(void) {
   if (get_chksum_ddb(&ddb0) == ddb0.chksum)
@@ -162,7 +162,7 @@ DDB* get_correct_ddb(void) {
   if (get_chksum_ddb(&ddb2) == ddb2.chksum)
     return &ddb2;
   Error_Handler(DDB_DESTORY);
-  return NULL;
+  return &ddb0;
 }
 
 // music data
