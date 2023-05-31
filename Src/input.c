@@ -117,5 +117,8 @@ void module_Input(void) {
       IWDG_Feed();
       printf("You may under an attack. Input Abort.\r\n");
     }
+  } else {
+    // do noting
+    HAL_delay(rand() % 20 + 100);
   }
 }

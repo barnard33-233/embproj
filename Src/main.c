@@ -116,6 +116,8 @@ void module_TimeEvent(void) {
     // init_keyboard();
     // init_uart();
     // printf("Fresh beep and backups...\r\n");
+  } else {
+    HAL_delay(50 + rand() % 10);
   }
 }
 
@@ -141,6 +143,8 @@ void module_Music(void) {
     note_time = Du_to_us(present_du);
     set_score_index((score_index + 1) % SCORE_LENGTH);
     music_timer = 0;
+  } else {
+    HAL_delay(10 + rand() % 10);
   }
   if(present_pitch != pause){
     IWDG_Feed();
@@ -161,6 +165,8 @@ void refresh_Display(void) {
     update_disp_right();
     update_disp_mid();
     last_fresh = flush_timer / 2333;
+  } else {
+    HAL_delay(5 + rand() % 5);
   }
 }
 
@@ -178,6 +184,8 @@ void do_Display(void) {
       MX_I2C1_Init();
     }
     last_fresh = flush_timer / 5000;
+  } else {
+    HAL_delay(100 + rand() % 20);
   }
 }
 
@@ -202,29 +210,29 @@ int main(void)
 
   refresh_Display();
 
+  srand(HAL_GetTick());
   /* Infinite loop */
   while (1)
   {
-    HAL_delay(1); // 确认中断的可用性 若不可用 看门狗会进行处理
 		int t = rand() % 3;
     if (t == 0) {
       refresh_Display();
       module_TimeEvent();
       do_Display();
-      module_Music();
       module_Input();
+      module_Music();
     } else if (t == 1) {
       module_Input();
       do_Display();
-      module_Music();
       refresh_Display();
       module_TimeEvent();
+      module_Music();
     } else {
       module_Input();
       refresh_Display();
-      module_Music();
       do_Display();
       module_TimeEvent();
+      module_Music();
     }
   }
 }
