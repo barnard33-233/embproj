@@ -44,11 +44,12 @@
 #include "bak.h"
 #include "IWDG.h"
 
-#define DEBUG_TEST_DURING
+// #define DEBUG_TEST_DURING
 
 #define DURING_TIME_EVENT 40
 #define DURING_REFRESH_RAM 20
 #define DURING_REFRESH_TUBE 430
+#define DURING_EXPAND_REINIT 300
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
@@ -198,32 +199,47 @@ void refresh_Display(void) {
 }
 
 void do_Display(void) {
-  // TODO: 我想到了一个完美解决 I2C 刷新问题的方法
   // 往数码管的显示缓冲区写一个字节
   static int last_fresh = -1, badc = 0;
+  static uint8_t cnt = 0;
   // 每 50ms 进行一次
   if (flush_timer / 50000 != last_fresh) {
+    cnt++;
+    // 每刷新 7 次数码管就重刷一次 I2C
+    if (cnt & 7) {
 #ifdef DEBUG_TEST_DURING
-    int t = HAL_GetTick(), e;
+      int t = HAL_GetTick(), e;
 #endif
-    IWDG_Feed();
-    // 获取当前需要显示的是第几个数码管
-    uint8_t i = get_disp_i();
-    if (I2C_ZLG7290_WriteOneByte(&hi2c1, 0x70, 0x10 + i, get_disp_buf(i)) == 0) {
-      // 成功写入 自加
-      plus_one_disp_i();
-      badc = 0;
+      IWDG_Feed();
+      // 获取当前需要显示的是第几个数码管
+      uint8_t i = get_disp_i();
+      if (I2C_ZLG7290_WriteOneByte(&hi2c1, 0x70, 0x10 + i, get_disp_buf(i)) == 0) {
+        // 成功写入 自加
+        plus_one_disp_i();
+        badc = 0;
+      } else {
+        badc++;
+        // 如果已经有多次写入失败，调用 Error_Handler 进行 I2C 重置
+        if (badc > 2) Error_Handler(I2C_BADSTATE);
+      }
+      HAL_Delay(5);
+      last_fresh = flush_timer / 50000;
+#ifdef DEBUG_TEST_DURING
+      e = HAL_GetTick();
+      printf("do display: %d\r\n", e - t);
+#endif
     } else {
-      badc++;
-      // 如果已经有多次写入失败，调用 Error_Handler 进行 I2C 重置
-      if (badc > 2) Error_Handler(I2C_BADSTATE);
-    }
-    HAL_Delay(5);
-    last_fresh = flush_timer / 50000;
 #ifdef DEBUG_TEST_DURING
-    e = HAL_GetTick();
-    printf("do display: %d\r\n", e - t);
+      int t = HAL_GetTick(), e;
 #endif
+      IWDG_Feed();
+      reinit_i2c(); // 重新初始化 i2c 和它的两个引脚
+      // TODO: HAL_Delay(DURING_EXPAND_REINIT + rand() % 10);
+#ifdef DEBUG_TEST_DURING
+      e = HAL_GetTick();
+      printf("reinit I2C: %d\r\n", e - t);
+#endif
+    }
   } else {
     HAL_Delay(DURING_REFRESH_TUBE + rand() % 10);
   }
