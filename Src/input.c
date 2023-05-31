@@ -12,7 +12,7 @@ extern int chk_speed_valid(uint16_t speed);
 extern void loop_delay(int time);
 extern void init_keyboard(void);
 extern void print_data(void);
-extern void HAL_delay(__IO uint32_t delay);
+extern void HAL_Delay(__IO uint32_t delay);
 
 void switch_key(void) { // É¨ÃèÂë×ªÊý×Ö
   switch (get_Rx1_Buffer()) {
@@ -119,6 +119,6 @@ void module_Input(void) {
     }
   } else {
     // do noting
-    HAL_delay(rand() % 20 + 100);
+    HAL_Delay(rand() % 20 + 100);
   }
 }

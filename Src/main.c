@@ -82,7 +82,7 @@ uint32_t music_timer = 0;
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
 void Error_Handler(int err);
-void HAL_delay(__IO uint32_t delay);
+void HAL_Delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
 void init_device(void);
@@ -117,7 +117,7 @@ void module_TimeEvent(void) {
     // init_uart();
     // printf("Fresh beep and backups...\r\n");
   } else {
-    HAL_delay(50 + rand() % 10);
+    HAL_Delay(50 + rand() % 10);
   }
 }
 
@@ -144,7 +144,7 @@ void module_Music(void) {
     set_score_index((score_index + 1) % SCORE_LENGTH);
     music_timer = 0;
   } else {
-    HAL_delay(10 + rand() % 10);
+    HAL_Delay(10 + rand() % 10);
   }
   if(present_pitch != pause){
     IWDG_Feed();
@@ -166,7 +166,7 @@ void refresh_Display(void) {
     update_disp_mid();
     last_fresh = flush_timer / 2333;
   } else {
-    HAL_delay(5 + rand() % 5);
+    HAL_Delay(5 + rand() % 5);
   }
 }
 
@@ -185,7 +185,7 @@ void do_Display(void) {
     }
     last_fresh = flush_timer / 5000;
   } else {
-    HAL_delay(100 + rand() % 20);
+    HAL_Delay(100 + rand() % 20);
   }
 }
 
@@ -357,8 +357,8 @@ void print_data(void) {
   }
 }
 
-// HAL_delay ÖØÐ´
-void HAL_delay(__IO uint32_t delay) {
+// HAL_Delay ÖØÐ´
+void HAL_Delay(__IO uint32_t delay) {
   uint32_t start = 0, end = 0;
   uint32_t now = 0, past = 0;
   uint32_t count = 0;
