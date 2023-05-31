@@ -199,14 +199,17 @@ int main(void)
   /* Infinite loop */
   while (1)
   {
+    HAL_delay(1); // 确认中断的可用性 若不可用 看门狗会进行处理
 		int t = rand() % 3;
     if (t == 0) {
       refresh_Display();
       module_TimeEvent();
+      do_Display();
       module_Music();
       module_Input();
       do_Display();
     } else if (t == 1) {
+      do_Display();
       module_Input();
       do_Display();
       module_Music();
@@ -216,6 +219,7 @@ int main(void)
       module_Input();
       refresh_Display();
       module_Music();
+      do_Display();
       do_Display();
       module_TimeEvent();
     }
