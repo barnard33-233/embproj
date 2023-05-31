@@ -418,6 +418,10 @@ void Error_Handler(int err)
       printf("@ Maybe something wrong with I2C!\r\n");
       break;
     }
+    case BAD_READ_INPUT: {
+      printf("@ Read three times differ!\r\n");
+      break;
+    }
     default: {
       printf("@ Receive an error code: %d\r\n", err);
       break;
