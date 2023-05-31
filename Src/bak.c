@@ -9,8 +9,9 @@ CDB cdb0;
 CDB __BACKUP_ONE__ cdb1;
 CDB __BACKUP_TWO__ cdb2;
 
-MDB *pmdb = NULL;
-CDB *pcdb = NULL;
+DDB ddb0;
+DDB __BACKUP_ONE__ ddb1;
+DDB __BACKUP_TWO__ ddb2;
 
 extern void Error_Handler(int err);
 
@@ -20,7 +21,11 @@ uint32_t get_chksum_mdb(MDB *p) {
 uint32_t get_chksum_cdb(CDB *p) {
   return (uint32_t)13lu + (p->flag1 << 4lu) \
   + (p->flag << 8lu) + (p->Rx1_Buffer << 12lu) \
-  + (p->receiving << 20lu) + (p->speed_buffer << 24lu);
+  + (p->receiving << 20lu) + (p->disp_i << 21lu) \
+  + (p->speed_buffer << 24lu);
+}
+uint32_t get_chksum_ddb(DDB *p) {
+  return p->dat.v[0] ^ (p->dat.v[1] >> 3lu) ^ (p->dat.v[1] << 29lu) ^ 0xffff;
 }
 
 __STATIC_INLINE void init_mdb0(void) {
@@ -36,7 +41,14 @@ __STATIC_INLINE void init_cdb0(void) {
   cdb0.receiving = 0;
   cdb0.flag = 0xff;
   cdb0.speed_buffer = 0;
+  cdb0.disp_i = 0;
   cdb0.chksum = get_chksum_cdb(&cdb0);
+}
+
+__STATIC_INLINE void init_ddb0(void) {
+  ddb0.dat.v[0] = 0;
+  ddb0.dat.v[1] = 0;
+  ddb0.chksum = get_chksum_ddb(&ddb0);
 }
 
 int restore_data(void) {
@@ -52,7 +64,7 @@ int restore_data(void) {
     init_mdb0();
     mdb1 = mdb2 = mdb0;
   }
-  pmdb = &mdb0;
+  // restore control data
   if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
     cdb0 = cdb2 = cdb1;
     hot = 1;
@@ -63,11 +75,21 @@ int restore_data(void) {
     init_cdb0();
     cdb1 = cdb2 = cdb0;
   }
-  pcdb = &cdb0;
+  // restore display data
+  if (get_chksum_ddb(&ddb1) == ddb1.chksum) {
+    ddb0 = ddb2 = ddb1;
+    hot = 1;
+  } else if (get_chksum_ddb(&ddb2) == ddb2.chksum) {
+    ddb0 = ddb1 = ddb2;
+    hot = 1;
+  } else {
+    init_ddb0();
+    ddb1 = ddb2 = ddb0;
+  }
   return hot;
 }
 
-void recover_backups(void) {
+void recover_mdbs(void) {
   if (get_chksum_mdb(&mdb0) == mdb0.chksum) {
     mdb1 = mdb2 = mdb0;
   } else if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
@@ -75,9 +97,11 @@ void recover_backups(void) {
   } else if (get_chksum_mdb(&mdb2) == mdb2.chksum) {
     mdb0 = mdb1 = mdb2;
   } else {
-    Error_Handler(1);
+    Error_Handler(MDB_DESTORY);
   }
-  pmdb = &mdb0;
+}
+
+void recover_cdbs(void) {
   if (get_chksum_cdb(&cdb0) == cdb0.chksum) {
     cdb1 = cdb2 = cdb0;
   } else if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
@@ -85,34 +109,58 @@ void recover_backups(void) {
   } else if (get_chksum_cdb(&cdb2) == cdb2.chksum) {
     cdb0 = cdb1 = cdb2;
   } else {
-    Error_Handler(2);
+    Error_Handler(CDB_DESTORY);
   }
-  pcdb = &cdb0;
+}
+
+void recover_ddbs(void) {
+  if (get_chksum_ddb(&ddb0) == ddb0.chksum) {
+    ddb1 = ddb2 = ddb0;
+  } else if (get_chksum_ddb(&ddb1) == ddb1.chksum) {
+    ddb0 = ddb2 = ddb1;
+  } else if (get_chksum_ddb(&ddb2) == ddb2.chksum) {
+    ddb0 = ddb1 = ddb2;
+  } else {
+    Error_Handler(DDB_DESTORY);
+  }
+}
+
+void recover_backups(void) {
+  recover_mdbs();
+  recover_cdbs();
+  recover_ddbs();
 }
 
 MDB* get_correct_mdb(void) {
-  if (pmdb != NULL && get_chksum_mdb(pmdb) == pmdb->chksum)
-    return pmdb;
   if (get_chksum_mdb(&mdb0) == mdb0.chksum) 
-    return pmdb = &mdb0;
+    return &mdb0;
   if (get_chksum_mdb(&mdb1) == mdb1.chksum)
-    return pmdb = &mdb1;
+    return &mdb1;
   if (get_chksum_mdb(&mdb2) == mdb2.chksum) 
-    return pmdb = &mdb2;
-  Error_Handler(1);
+    return &mdb2;
+  Error_Handler(MDB_DESTORY);
   return NULL;
 }
 
 CDB* get_correct_cdb(void) {
-  if (pcdb != NULL && get_chksum_cdb(pcdb) == pcdb->chksum)
-    return pcdb;
   if (get_chksum_cdb(&cdb0) == cdb0.chksum)
-    return pcdb = &cdb0;
+    return &cdb0;
   if (get_chksum_cdb(&cdb1) == cdb1.chksum)
-    return pcdb = &cdb1;
+    return &cdb1;
   if (get_chksum_cdb(&cdb2) == cdb2.chksum)
-    return pcdb = &cdb2;
-  Error_Handler(2);
+    return &cdb2;
+  Error_Handler(CDB_DESTORY);
+  return NULL;
+}
+
+DDB* get_correct_ddb(void) {
+  if (get_chksum_ddb(&ddb0) == ddb0.chksum)
+    return &ddb0;
+  if (get_chksum_ddb(&ddb1) == ddb1.chksum)
+    return &ddb1;
+  if (get_chksum_ddb(&ddb2) == ddb2.chksum)
+    return &ddb2;
+  Error_Handler(DDB_DESTORY);
   return NULL;
 }
 
@@ -171,6 +219,9 @@ uint8_t get_flag(void) {
 uint16_t get_speed_buffer(void) {
   return get_correct_cdb()->speed_buffer;
 }
+uint8_t get_disp_i(void) {
+  return get_correct_cdb()->disp_i;
+}
 
 #define CDB_UPD_VALUE(var_name, new_value) \
   CDB *p = get_correct_cdb(); \
@@ -214,6 +265,77 @@ void plus_one_flag1(void) {
 void update_speed_buffer(void) {
   CDB *p = get_correct_cdb();
   p->speed_buffer = p->speed_buffer * 10 + p->flag;
+  if (p->speed_buffer > 170) p->speed_buffer = 999;
   p->chksum = get_chksum_cdb(p);
   CDB_UPD_ALL(speed_buffer, p->speed_buffer);
+}
+void plus_one_disp_i(void) {
+  CDB *p = get_correct_cdb();
+  p->disp_i = (p->disp_i + 1) & 7;
+  p->chksum = get_chksum_cdb(p);
+  CDB_UPD_ALL(flag1, p->flag1);
+}
+
+uint8_t get_disp_buf(int i) {
+  return get_correct_ddb()->dat.buf[i & 7];
+}
+
+#define DDB_UPD_ALL(var_name, new_value) \
+  ddb0.##var_name = new_value, ddb0.chksum = p->chksum; \
+  ddb1.##var_name = new_value, ddb1.chksum = p->chksum; \
+  ddb2.##var_name = new_value, ddb2.chksum = p->chksum;
+
+const uint8_t num2code[] = {
+  0xfc, 0x0c, 0xda, 0xf2, 0x66, 0xb6, 0xbe, 0xe0, 0xfe, 0xe6
+};
+
+void update_disp_left(void) {
+  DDB *p = get_correct_ddb();
+  uint16_t speed = get_speed();
+  if (speed < 100) {
+    p->dat.buf[0] = num2code[speed / 10 % 10];
+    p->dat.buf[1] = num2code[speed % 10];
+    p->dat.buf[2] = 0;
+  } else {
+    p->dat.buf[0] = num2code[1];
+    p->dat.buf[1] = num2code[speed / 10 % 10];
+    p->dat.buf[2] = num2code[speed % 10];
+  }
+  p->chksum = get_chksum_ddb(p);
+  ddb0 = ddb1 = ddb2 = *p;
+}
+
+void update_disp_right(void) {
+  DDB *p = get_correct_ddb();
+  if (get_receiving() == 1) {
+    uint16_t speed = get_speed_buffer();
+    if (speed < 10) {
+      p->dat.buf[5] = 0;
+      p->dat.buf[6] = 0;
+      p->dat.buf[7] = num2code[speed % 10];
+    } else if (speed < 100) {
+      p->dat.buf[5] = 0;
+      p->dat.buf[6] = num2code[speed / 10 % 10];
+      p->dat.buf[7] = num2code[speed % 10];
+    } else {
+      p->dat.buf[5] = num2code[speed / 100 % 10];
+      p->dat.buf[6] = num2code[speed / 10 % 10];
+      p->dat.buf[7] = num2code[speed % 10];
+    }
+  } else {
+    p->dat.buf[5] = p->dat.buf[6] = p->dat.buf[7] = 0;
+  }
+  p->chksum = get_chksum_ddb(p);
+  ddb0 = ddb1 = ddb2 = *p;
+}
+
+void update_disp_mid(void) {
+  DDB *p = get_correct_ddb();
+  if (get_stop() == 0) {
+    p->dat.buf[3] = 0x02, p->dat.buf[4] = 0x02;
+  } else {
+    p->dat.buf[3] = 0x20, p->dat.buf[4] = 0x04;
+  }
+  p->chksum = get_chksum_ddb(p);
+  ddb0 = ddb1 = ddb2 = *p;
 }

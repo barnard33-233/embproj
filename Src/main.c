@@ -47,8 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
-#define SPEED_BUFFER_MAX 4
-#define MAX_FLAG1 3 // 开始输入，输入内容，停止输入，最长是5.
+#define DISPLAY_BUFFER_MAX 4
 
 const struct Note score[SCORE_LENGTH] = {
 	{C4, NOTE4},
@@ -83,9 +82,7 @@ uint32_t music_timer = 0;
 void SystemClock_Config(void);
 uint32_t Du_to_us(enum DURATION du);
 void Error_Handler(int err);
-void switch_key(void); // 将键值转化为对应的数字
-void switch_flag(void);
-void HAL_delay(__IO uint32_t delay);
+void HAL_Delay(__IO uint32_t delay);
 void print_data(void);
 void HAL_SYSTICK_Callback(void);
 void init_device(void);
@@ -93,11 +90,12 @@ void loop_delay(int time);
 void init_keyboard(void);
 void init_beep(void);
 void init_uart(void);
+void reinit_i2c(void);
 int chk_speed_valid(uint16_t speed);
 
 void module_TimeEvent(void);
-void module_Input(void);
 void module_Music(void);
+extern void module_Input(void);
 //__STATIC_INLINE void disable_SysTick(void); 
 //__STATIC_INLINE void enable_SysTick(void);
 /* Private function prototypes -----------------------------------------------*/
@@ -107,62 +105,21 @@ void module_TimeEvent(void) {
   // 控制 music_timer 是否计数
   if (get_stop() == 1) enable_music = 0;
   else enable_music = 1;
-  if (flush_timer /*get_flush_timer()*/ >= 40000) {
-    // 定时事件 每 40 ms
+  if (flush_timer /*get_flush_timer()*/ >= 100000) {
+    // 定时事件 每 100 ms
     flush_timer = 0; // reset_flush_timer();
-    // 同步所有备份数据
+    // 重新刷新蜂鸣器的引脚和中断标志位
     IWDG_Feed();
-    recover_backups();
-    // 初始化设备
+    init_keyboard();
     IWDG_Feed();
     init_beep();
-    // init_keyboard();
     // init_uart();
-    IWDG_Feed();
-    // printf("Fresh beep and backups...\r\n");
-  }
-}
-
-// 按键处理模块
-void module_Input(void) {
-  if (get_flag1() >= 1) {
-    if(get_flag1() >= MAX_FLAG1) {
-      IWDG_Feed();
-      init_keyboard();
-    }
-    uint8_t tmp_rx1 = 0, tmp_rx2 = 0, tmp_rx3 = 0;
-    set_flag1(0);
-    comp_flag = 0; // 序列完整性标志
-    IWDG_Feed();
-    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx1, 1);
-    comp_flag |= 1;
-    IWDG_Feed();
-    I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx2, 1);
-    comp_flag |= 2;
-    if (tmp_rx2 != tmp_rx1) {
-      IWDG_Feed();
-      I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &tmp_rx3, 1);
-      if (tmp_rx1 == tmp_rx2) tmp_rx1 = tmp_rx1;
-      else if (tmp_rx1 == tmp_rx3) tmp_rx1 = tmp_rx3;
-      else if (tmp_rx2 == tmp_rx3) tmp_rx1 = tmp_rx2;
-      else Error_Handler(0);
-    }
-    set_Rx1_Buffer(tmp_rx1);
-    comp_flag |= 4;
-    IWDG_Feed();
-    // 在输入与处理间添加随机时延
-    loop_delay(rand() % 100);
-    if (comp_flag == 7) {
-      IWDG_Feed();
-      switch_key(); // 更新 flag 的值 
-      printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
-      IWDG_Feed();
-      switch_flag();
-    } else {
-      // 不等于 3 意味着攻击者跳过了前面的语句
-      IWDG_Feed();
-      printf("You may under an attack. Input Abort.\r\n");
-    }
+    // IWDG_Feed();
+    // reinit_i2c();
+    // 设置时间中断为开
+    __HAL_RCC_PWR_CLK_ENABLE();
+  } else {
+    HAL_Delay(40 + rand() % 10);
   }
 }
 
@@ -177,41 +134,89 @@ void module_Music(void) {
     present_du = score[score_index].duration;
     present_pitch = score[score_index].pitch;
     if (!chk_speed_valid(get_speed())) {
-      // 速度复原
+      // 理论上，速度值不合法只有一种可能性:
+      // 在将 speed_buffer 写入 speed 时的判断因为不明原因被跳过
       IWDG_Feed();
       printf("Bad speed value. You may under an attack.\r\n");
       printf("Reset speed to 120.\r\n");
       set_speed(120);
     }
-    // 写入音符信息
     IWDG_Feed();
+    // 刷新音符时间
     note_time = Du_to_us(present_du);
+    // 将下一个音符写入备份中
     set_score_index((score_index + 1) % SCORE_LENGTH);
+    // 重置时间计数器
     music_timer = 0;
   }
   if(present_pitch != pause){
+    // 波形模拟
     IWDG_Feed();
     HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
     HAL_Delay(present_pitch);
     IWDG_Feed();
     HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
-    HAL_Delay(present_pitch);
+    HAL_Delay(present_pitch - 570); // 修音
+  }
+}
+
+void refresh_Display(void) {
+  // 刷新需要显示的值 (保存在备份中的 buf)
+  static int last_fresh = -1;
+  // 每 23ms 刷新一次显示值
+  if (flush_timer / 23333 != last_fresh) {
+    IWDG_Feed();
+    // 左侧显示速度
+    update_disp_left();
+    // 右边显示输入状态
+    update_disp_right();
+    // 中间显示开关状态
+    update_disp_mid();
+    last_fresh = flush_timer / 23333;
+  } else {
+    HAL_Delay(20 + rand() % 10);
+  }
+}
+
+void do_Display(void) {
+  // 往数码管的显示缓冲区写一个字节
+  static int last_fresh = -1, badc = 0;
+  // 每 50ms 进行一次
+  if (flush_timer / 50000 != last_fresh) {
+    IWDG_Feed();
+    // 获取当前需要显示的是第几个数码管
+    uint8_t i = get_disp_i();
+    if (I2C_ZLG7290_WriteOneByte(&hi2c1, 0x70, 0x10 + i, get_disp_buf(i)) == 0) {
+      // 成功写入 自加
+      plus_one_disp_i();
+      badc = 0;
+    } else {
+      badc++;
+      if (badc > 2) {
+        Error_Handler(I2C_BADSTATE);
+      }
+    }
+    HAL_Delay(5);
+    last_fresh = flush_timer / 50000;
+  } else {
+    HAL_Delay(420 + rand() % 20);
   }
 }
 
 int main(void)
 {
-
-  /* MCU Configuration */
+  // 如果是热启动，会从内存中恢复数据
   int hot = restore_data();
-  // delay when cold boot
+  // 如果是冷启动，会进入一段 loop 来等待设备上电
   if (hot == 0) loop_delay(1000);
 
+  // 初始化一切并开始看门狗计时
   init_device();
   IWDG_Start();
   
+  // 调试信息
   IWDG_Feed();
-  if (hot == 1) printf("A hot booting... \r\n");
+  if (hot != 0) printf("A hot booting... \r\n");
   printf("-------------------------------------------------\r\n");
   printf(" Muti speed music player! \r\n");
   printf("-------------------------------------------------\r\n");
@@ -219,39 +224,45 @@ int main(void)
   print_data();
 	printf("-------------------------------------------------\r\n");
 
+  // 刷新一次待显示内容
+  refresh_Display();
+
+  srand(HAL_GetTick());
+  
   /* Infinite loop */
   while (1)
   {
-    // 如果长时间没有喂狗 说明 timer 出了问题 会热启动
+    // 随机乱序执行各个模块
 		int t = rand() % 3;
     if (t == 0) {
+      refresh_Display();
       module_TimeEvent();
+      do_Display();
       module_Input();
       module_Music();
     } else if (t == 1) {
       module_Input();
-      module_Music();
+      do_Display();
+      refresh_Display();
       module_TimeEvent();
+      module_Music();
     } else {
-      module_Music();
-      module_TimeEvent();
       module_Input();
+      refresh_Display();
+      do_Display();
+      module_TimeEvent();
+      module_Music();
     }
   }
 }
 
-/** System Clock Configuration
-*/
+// 配置系统时钟
 void SystemClock_Config(void)
 {
-
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
-
   __PWR_CLK_ENABLE();
-
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -261,7 +272,6 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   HAL_RCC_OscConfig(&RCC_OscInitStruct);
-
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1
                               |RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -269,11 +279,8 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
-
-  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/2000000);
-
+  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/2000000); // 1us
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-
 }
 
 void init_device(void) {
@@ -291,7 +298,6 @@ void init_device(void) {
 
 void init_keyboard(void) {
   GPIO_Init_Keyboard();
-  MX_I2C1_Init();
 }
 
 void init_beep(void) {
@@ -301,6 +307,11 @@ void init_beep(void) {
 void init_uart(void) {
   __GPIOA_CLK_ENABLE();
   MX_USART1_UART_Init();
+}
+
+void reinit_i2c(void) {
+  HAL_I2C_DeInit(&hi2c1);
+  MX_I2C1_Init();
 }
 
 /*__STATIC_INLINE void disable_SysTick(void) {
@@ -321,78 +332,17 @@ uint32_t Du_to_us(enum DURATION du)
 }
 
 void HAL_SYSTICK_Callback(void) {
-  flush_timer ++; // plus_flush_timer();
-  if (enable_music == 1) music_timer ++;
-}
-
-void switch_key(void) {
-  switch (get_Rx1_Buffer()) {
-    case 0x1c: set_flag(1); break; // numbers
-		case 0x1b: set_flag(2); break;
-		case 0x1a: set_flag(3); break;
-		case 0x14: set_flag(4); break;
-		case 0x13: set_flag(5); break;
-		case 0x12: set_flag(6); break;
-    case 0x0c: set_flag(7); break;
-		case 0x0b: set_flag(8); break;
-		case 0x0a: set_flag(9); break;
-		case 0x03: set_flag(0); break; // 0
-		case 0x19: set_flag(10); break; // A
-		case 0x11: set_flag(11); break; // B
-		case 0x09: set_flag(12); break; // C
-		case 0x01: set_flag(13); break; // D
-		case 0x02: set_flag(14); break; // #
-		case 0x04: set_flag(15); break; // *
-		default: break;
-  }
+  flush_timer ++;
+  if (enable_music != 0) music_timer ++;
 }
 
 int chk_speed_valid(uint16_t speed) {
   return speed >= 50 && speed <= 170;
 }
 
-void switch_flag(void){
-  uint8_t flag = get_flag();
-  if (get_receiving()) { // receiving user input.
-    if (flag <= 9) {
-      update_speed_buffer();
-      printf("Receiving... (%d)\r\n", get_speed_buffer());
-    } else if (flag == 14) { // commit
-      if(chk_speed_valid(get_speed_buffer())){ // valid value
-        set_speed(get_speed_buffer());
-        printf("Commit! Change speed to %d.\r\n", get_speed());
-      } else{
-        printf("Invalid value: %d.\r\n", get_speed_buffer());
-      }
-      IWDG_Feed();
-			set_speed_buffer(0);
-      set_receiving(0);
-      printf("Finish receiving!\r\n");
-    } else {
-      printf("Commit Cancel! Finish receiving.\r\n");
-			set_speed_buffer(0);
-      set_receiving(0);
-    }
-  } else {
-    switch (flag) {
-      case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
-      case 10: set_stop(1); printf("Pause music...\r\n"); break;
-      case 11: set_stop(0); printf("Continue music...\r\n"); break;
-      case 15: {
-        IWDG_Feed();
-        printf("-------------------------------------------------\r\n");
-        print_data();
-        printf("-------------------------------------------------\r\n");
-        break;
-      }
-      default: break;
-    }
-  }
-}
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	plus_one_flag1(); // if flag 1 reaches TODO, the zlg7290 and it's port should be refreshed.
+	plus_one_flag1();
 }
 
 int fputc(int ch, FILE *f)
@@ -422,8 +372,8 @@ void print_data(void) {
   }
 }
 
-// HAL_delay 重写
-void HAL_delay(__IO uint32_t delay) {
+// HAL_Delay 重写
+void HAL_Delay(__IO uint32_t delay) {
   uint32_t start = 0, end = 0;
   uint32_t now = 0, past = 0;
   uint32_t count = 0;
@@ -433,12 +383,12 @@ void HAL_delay(__IO uint32_t delay) {
     // feed IWDG
     IWDG_Feed();
     // 进入休眠模式
-    HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI); // TODO: test
+    HAL_PWR_EnterSLEEPMode(PWR_LOWPOWERREGULATOR_ON, PWR_SLEEPENTRY_WFI);
     now = HAL_GetTick();
     if (now == past) {
       // 如果 now 在 20 次循环后仍然没有变化
       // 说明定时器出错
-      if (++count > 20) Error_Handler(3);
+      if (++count > 20) Error_Handler(DELAY_TIMEOUT);
     } else {
       past = now, count = 0;
     }
@@ -456,24 +406,53 @@ void loop_delay(int time){
   */
 void Error_Handler(int err)
 {
-  /* USER CODE BEGIN Error_Handler */
-  /* User can add his own implementation to report the HAL error return state */
-  // TODO: 这里该写什么呢 ?
   IWDG_Feed();
   printf("\n\r!! Error Handler !!\r\n");
-  if (err == 1) {
-    printf("@ It looks like all backups of mdb broken!\r\n");
-  } else if (err == 2) {
-    printf("@ It looks like all backups of cdb broken!\r\n");
-  } else if (err == 3) {
-    printf("@ HAL_Delay timeout!\r\n");
-  } else if (err == 4) {
-		printf("@ HAL_IWDG_Init failed!\r\n");
-	} else {
-    printf("@ Receive an error code: %d!\r\n", err);
+  switch (err) {
+    case MDB_DESTORY: {
+      printf("@ It looks like all backups of mdb broken!\r\n"); 
+      break;
+    }
+    case CDB_DESTORY: {
+      printf("@ It looks like all backups of cdb broken!\r\n");
+      break;
+    }
+    case DELAY_TIMEOUT: {
+      printf("@ HAL_Delay timeout!\r\n");
+      break;
+    }
+    case IWDG_INIT_ERROR: {
+      printf("@ HAL_IWDG_Init failed!\r\n");
+      break;
+    }
+    case DDB_DESTORY: {
+      printf("@ It looks like all backups of ddb broken!\r\n");
+      break;
+    }
+    case I2C_BADSTATE: {
+      printf("@ Maybe something wrong with I2C!\r\n");
+      IWDG_Feed();
+      GPIO_Init_Keyboard();
+      reinit_i2c();
+      return;
+    }
+    case BAD_READ_INPUT: {
+      printf("@ Read three times differ!\r\n");
+      break;
+    }
+    case TOO_MANY_FLAG1: {
+      printf("@ Flag1 too large!\r\n");
+      IWDG_Feed();
+      init_keyboard();
+      set_flag1(0);
+      return;
+    }
+    default: {
+      printf("@ Receive an error code: %d\r\n", err);
+      break;
+    }
   }
-  while(1);
-  /* USER CODE END Error_Handler */ 
+  while(1); // loop to meet an hot boot
 }
 
 #ifdef USE_FULL_ASSERT
