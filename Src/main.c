@@ -118,6 +118,8 @@ void module_TimeEvent(void) {
     // reinit_i2c();
     // 设置时间中断为开
     __HAL_RCC_PWR_CLK_ENABLE();
+  } else {
+    HAL_Delay(40 + rand() % 10);
   }
 }
 
@@ -154,7 +156,7 @@ void module_Music(void) {
     HAL_Delay(present_pitch);
     IWDG_Feed();
     HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
-    HAL_Delay(present_pitch);
+    HAL_Delay(present_pitch - 50); // 修音
   }
 }
 
@@ -171,6 +173,8 @@ void refresh_Display(void) {
     // 中间显示开关状态
     update_disp_mid();
     last_fresh = flush_timer / 23333;
+  } else {
+    HAL_Delay(20 + rand() % 10);
   }
 }
 
@@ -194,6 +198,8 @@ void do_Display(void) {
     }
     HAL_Delay(5);
     last_fresh = flush_timer / 50000;
+  } else {
+    HAL_Delay(420 + rand() % 20);
   }
 }
 
