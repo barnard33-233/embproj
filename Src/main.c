@@ -413,36 +413,41 @@ void Error_Handler(int err)
   printf("\n\r!! Error Handler !!\r\n");
   switch (err) {
     case MDB_DESTORY: {
-      printf("@ It looks like all backups of mdb broken!\r\n"); 
-      break;
+      printf("@ It looks like all backups of mdb broken! I will reset it.\r\n");
+      init_mdb(); // 重置 mdb
+      return;
     }
     case CDB_DESTORY: {
       printf("@ It looks like all backups of cdb broken!\r\n");
-      break;
+      init_cdb(); // 重置 cdb
+      return;
     }
     case DELAY_TIMEOUT: {
       printf("@ HAL_Delay timeout!\r\n");
-      break;
+      break; // break 到死循环由看门狗复位
     }
     case IWDG_INIT_ERROR: {
       printf("@ HAL_IWDG_Init failed!\r\n");
-      break;
+      init_device(); // 从头再来
+      return;
     }
     case DDB_DESTORY: {
       printf("@ It looks like all backups of ddb broken!\r\n");
-      break;
+      init_ddb(); // 重置 ddb
+      return;
     }
     case I2C_BADSTATE: {
       printf("@ Maybe something wrong with I2C!\r\n");
       IWDG_Feed();
       GPIO_Init_Keyboard();
       reinit_i2c();
+      HAL_Delay(5000);
       return;
     }
-    case BAD_READ_INPUT: {
+    /*case BAD_READ_INPUT: {
       printf("@ Read three times differ!\r\n");
       break;
-    }
+    }*/
     case TOO_MANY_FLAG1: {
       printf("@ Flag1 too large!\r\n");
       IWDG_Feed();

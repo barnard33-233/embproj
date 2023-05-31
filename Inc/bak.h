@@ -38,6 +38,10 @@ typedef BACKUP_DISPLAY DDB;
 #define __BACKUP_ONE__ __attribute__((section("BACKUP_ONE"), zero_init))
 #define __BACKUP_TWO__ __attribute__((section("BACKUP_TWO"), zero_init))
 
+void init_mdb(void);
+void init_cdb(void);
+void init_ddb(void);
+
 int restore_data(void);
 
 void recover_mdbs(void);

@@ -32,13 +32,14 @@ uint32_t get_chksum_ddb(DDB *p) {
 }
 
 // 下面的三个 init 用于冷启动的初始化
-__STATIC_INLINE void init_mdb0(void) {
+void init_mdb(void) {
   mdb0.speed = 120;
   mdb0.score_index = 0;
   mdb0.stop = 0;
   mdb0.chksum = get_chksum_mdb(&mdb0);
+  mdb1 = mdb2 = mdb0;
 }
-__STATIC_INLINE void init_cdb0(void) {
+void init_cdb(void) {
   cdb0.flag1 = 0;
   cdb0.Rx1_Buffer = 0;
   cdb0.receiving = 0;
@@ -46,11 +47,13 @@ __STATIC_INLINE void init_cdb0(void) {
   cdb0.speed_buffer = 0;
   cdb0.disp_i = 0;
   cdb0.chksum = get_chksum_cdb(&cdb0);
+  cdb1 = cdb2 = cdb0;
 }
-__STATIC_INLINE void init_ddb0(void) {
+void init_ddb(void) {
   ddb0.dat.v[0] = 0;
   ddb0.dat.v[1] = 0;
   ddb0.chksum = get_chksum_ddb(&ddb0);
+  ddb1 = ddb2 = ddb0;
 }
 
 int restore_data(void) {
@@ -64,8 +67,7 @@ int restore_data(void) {
     mdb0 = mdb1 = mdb2;
     hot = 1;
   } else {
-    init_mdb0();
-    mdb1 = mdb2 = mdb0;
+    init_mdb();
   }
   // restore control data
   if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
@@ -75,8 +77,7 @@ int restore_data(void) {
     cdb0 = cdb1 = cdb2;
     hot = 1;
   } else {
-    init_cdb0();
-    cdb1 = cdb2 = cdb0;
+    init_cdb();
   }
   // restore display data
   if (get_chksum_ddb(&ddb1) == ddb1.chksum) {
@@ -86,8 +87,7 @@ int restore_data(void) {
     ddb0 = ddb1 = ddb2;
     hot = 1;
   } else {
-    init_ddb0();
-    ddb1 = ddb2 = ddb0;
+    init_ddb();
   }
   return hot;
 }
