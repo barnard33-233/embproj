@@ -41,5 +41,6 @@ struct Note{
 #define BAD_READ_INPUT 5
 #define DDB_DESTORY 6
 #define I2C_BADSTATE 7
+#define TOO_MANY_FLAG1 8
 
 #endif
