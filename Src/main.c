@@ -179,9 +179,12 @@ void do_Display(void) {
     if (I2C_ZLG7290_WriteOneByte(&hi2c1, 0x70, 0x10 + i, get_disp_buf(i)) == 0) {
       plus_one_disp_i();
       badc = 0;
-    } else if (badc > 10) {
-      printf("Bad I2C state. Reset it.\r\n");
-      MX_I2C1_Init();
+    } else {
+      badc++;
+      if (badc > 10) {
+        printf("Bad I2C state. Reset it.\r\n");
+        MX_I2C1_Init();
+      }
     }
     last_fresh = flush_timer / 5000;
   } else {
