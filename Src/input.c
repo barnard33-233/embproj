@@ -11,8 +11,8 @@
 extern int chk_speed_valid(uint16_t speed);
 extern void loop_delay(int time);
 extern void init_keyboard(void);
-void print_data(void);
-
+extern void print_data(void);
+extern void HAL_delay(__IO uint32_t delay);
 
 void switch_key(void) { // É¨ÃèÂë×ªÊý×Ö
   switch (get_Rx1_Buffer()) {
