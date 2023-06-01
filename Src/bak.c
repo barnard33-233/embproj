@@ -135,33 +135,33 @@ void recover_backups(void) {
 
 // 下面的函数会校验三个备份 并选出可靠的数据来源
 MDB* get_correct_mdb(void) {
-  if (get_chksum_mdb(&mdb0) == mdb0.chksum) 
-    return &mdb0;
-  if (get_chksum_mdb(&mdb1) == mdb1.chksum)
-    return &mdb1;
-  if (get_chksum_mdb(&mdb2) == mdb2.chksum) 
-    return &mdb2;
-  Error_Handler(MDB_DESTORY);
+  if (get_chksum_mdb(&mdb0) == mdb0.chksum)
+    mdb1 = mdb2 = mdb0;
+  else if (get_chksum_mdb(&mdb1) == mdb1.chksum)
+    mdb0 = mdb2 = mdb1;
+  else if (get_chksum_mdb(&mdb2) == mdb2.chksum)
+    mdb0 = mdb1 = mdb2;
+  else Error_Handler(MDB_DESTORY);
   return &mdb0;
 }
 CDB* get_correct_cdb(void) {
-  if (get_chksum_cdb(&cdb0) == cdb0.chksum)
-    return &cdb0;
-  if (get_chksum_cdb(&cdb1) == cdb1.chksum)
-    return &cdb1;
-  if (get_chksum_cdb(&cdb2) == cdb2.chksum)
-    return &cdb2;
-  Error_Handler(CDB_DESTORY);
+  if (get_chksum_cdb(&cdb0) == cdb0.chksum) 
+    cdb1 = cdb2 = cdb0;
+  else if (get_chksum_cdb(&cdb1) == cdb1.chksum)
+    cdb0 = cdb2 = cdb1;
+  else if (get_chksum_cdb(&cdb2) == cdb2.chksum)
+    cdb0 = cdb1 = cdb2;
+  else Error_Handler(CDB_DESTORY);
   return &cdb0;
 }
 DDB* get_correct_ddb(void) {
   if (get_chksum_ddb(&ddb0) == ddb0.chksum)
-    return &ddb0;
-  if (get_chksum_ddb(&ddb1) == ddb1.chksum)
-    return &ddb1;
-  if (get_chksum_ddb(&ddb2) == ddb2.chksum)
-    return &ddb2;
-  Error_Handler(DDB_DESTORY);
+    ddb1 = ddb2 = ddb0;
+  else if (get_chksum_ddb(&ddb1) == ddb1.chksum)
+    ddb0 = ddb2 = ddb1;
+  else if (get_chksum_ddb(&ddb2) == ddb2.chksum)
+    ddb0 = ddb1 = ddb2;
+  else Error_Handler(DDB_DESTORY);
   return &ddb0;
 }
 
