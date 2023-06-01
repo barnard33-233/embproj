@@ -124,7 +124,6 @@ void module_TimeEvent(void) {
     flush_timer = 0;
     // 重新刷新蜂鸣器的引脚和中断标志位
     // 串口的刷新和 I2C 的刷新不在这里
-    IWDG_Feed();
     init_keyboard();
     init_beep();
     // 检查备份
@@ -169,12 +168,12 @@ void module_Music(void) {
   }
   if(present_pitch != pause){
     // 波形模拟
-    IWDG_Feed();
     HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
     do_HAL_Delay(present_pitch);
     HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
     do_HAL_Delay(present_pitch - 850); // 修音
   }
+	IWDG_Feed();
 }
 
 void refresh_Display(void) {
@@ -185,7 +184,6 @@ void refresh_Display(void) {
 #ifdef DEBUG_TEST_DURING
     int t = HAL_GetTick(), e;
 #endif
-    IWDG_Feed();
     // 左侧显示速度
     update_disp_left();
     // 右边显示输入状态
@@ -215,7 +213,6 @@ void do_I2C_regular(void) {
 #ifdef DEBUG_TEST_DURING
       int t = HAL_GetTick(), e;
 #endif
-      IWDG_Feed();
       // 获取当前需要显示的是第几个数码管
       uint8_t i = get_disp_i();
       if (I2C_ZLG7290_WriteOneByte(&hi2c1, 0x70, 0x10 + i, get_disp_buf(i)) == 0) {

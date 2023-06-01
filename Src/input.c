@@ -154,7 +154,6 @@ void module_Input(void) {
     // 无效输入直接忽略
     if (tmp == 0) return;
     // 将数据写入备份中
-    IWDG_Feed();
     set_Rx1_Buffer(tmp);
     // 在输入与处理间添加随机时延
     // 数码管的写入本身与是否有输入是没有关系的，我们并不认为攻击者能通过数码管的写入来推断什么
@@ -162,11 +161,9 @@ void module_Input(void) {
     // 因此，这个随机时延是必要的，可以隐藏键盘中断到音乐暂停间的关系
     loop_delay(rand() % 100);
     // 将获取的扫描码与数字对应起来
-    IWDG_Feed();
     switch_key();
     printf("Get keyvalue = %#x => flag = %d\r\n", get_Rx1_Buffer(), get_flag());
     // 针对不同的 flag 做出不同的处理
-    IWDG_Feed();
     switch_flag();
   }
 }
