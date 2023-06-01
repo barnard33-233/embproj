@@ -83,6 +83,9 @@ int comp_flag;
 
 uint32_t flush_timer = 0;
 uint32_t music_timer = 0;
+uint32_t i2c_timer = 0;
+
+int suc_delay = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -132,7 +135,7 @@ void module_TimeEvent(void) {
   } else {
     // 模块后的 Delay 都是为了稳定波形
     // rand() 是因为上面的代码执行时间一定存在波动
-    HAL_Delay(DURING_TIME_EVENT + rand() % 10);
+    do_HAL_Delay(DURING_TIME_EVENT + rand() % 10);
   }
 }
 
@@ -166,18 +169,18 @@ void module_Music(void) {
     // 波形模拟
     IWDG_Feed();
     HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_SET);
-    HAL_Delay(present_pitch);
+    do_HAL_Delay(present_pitch);
     IWDG_Feed();
     HAL_GPIO_WritePin(GPIOG,GPIO_PIN_6,GPIO_PIN_RESET);
-    HAL_Delay(present_pitch - 570); // 修音
+    do_HAL_Delay(present_pitch - 570); // 修音
   }
 }
 
 void refresh_Display(void) {
   // 刷新需要显示的值 (保存在备份中的 buf)
   static int last_fresh = -1;
-  // 每 23ms 刷新一次显示值
-  if (flush_timer / 23333 != last_fresh) {
+  // 每 10ms 刷新一次显示值
+  if (flush_timer / 10000 != last_fresh) {
 #ifdef DEBUG_TEST_DURING
     int t = HAL_GetTick(), e;
 #endif
@@ -188,22 +191,22 @@ void refresh_Display(void) {
     update_disp_right();
     // 中间显示开关状态
     update_disp_mid();
-    last_fresh = flush_timer / 23333;
+    last_fresh = flush_timer / 10000;
 #ifdef DEBUG_TEST_DURING
     e = HAL_GetTick();
     printf("refresh display: %d\r\n", e - t);
 #endif
   } else {
-    HAL_Delay(DURING_REFRESH_RAM + rand() % 10);
+    do_HAL_Delay(DURING_REFRESH_RAM + rand() % 10);
   }
 }
 
-void do_Display(void) {
+void do_I2C_regular(void) {
   // 往数码管的显示缓冲区写一个字节
-  static int last_fresh = -1, badc = 0;
+  static int badc = 0;
   static uint8_t cnt = 0;
-  // 每 50ms 进行一次
-  if (flush_timer / 50000 != last_fresh) {
+  // 每 10ms 进行一次
+  if (i2c_timer > 10000) {
     cnt++;
     // 每刷新 7 次数码管就重刷一次 I2C
     if (cnt & 7) {
@@ -222,8 +225,7 @@ void do_Display(void) {
         // 如果已经有多次写入失败，调用 Error_Handler 进行 I2C 重置
         if (badc > 2) Error_Handler(I2C_BADSTATE);
       }
-      HAL_Delay(5);
-      last_fresh = flush_timer / 50000;
+      do_HAL_Delay(5);
 #ifdef DEBUG_TEST_DURING
       e = HAL_GetTick();
       printf("do display: %d\r\n", e - t);
@@ -240,8 +242,9 @@ void do_Display(void) {
       printf("reinit I2C: %d\r\n", e - t);
 #endif
     }
+    i2c_timer = 0;
   } else {
-    HAL_Delay(DURING_REFRESH_TUBE + rand() % 10);
+    do_HAL_Delay(DURING_REFRESH_TUBE + rand() % 10);
   }
 }
 
@@ -280,19 +283,19 @@ int main(void)
     if (t == 0) {
       refresh_Display();
       module_TimeEvent();
-      do_Display();
+      do_I2C_regular();
       module_Input();
       module_Music();
     } else if (t == 1) {
       module_Input();
-      do_Display();
+      do_I2C_regular();
       refresh_Display();
       module_TimeEvent();
       module_Music();
     } else {
       module_Input();
       refresh_Display();
-      do_Display();
+      do_I2C_regular();
       module_TimeEvent();
       module_Music();
     }
@@ -375,7 +378,7 @@ uint32_t Du_to_us(enum DURATION du)
 }
 
 void HAL_SYSTICK_Callback(void) {
-  flush_timer ++;
+  flush_timer ++; i2c_timer ++;
   if (enable_music != 0) music_timer ++;
 }
 
@@ -418,6 +421,7 @@ void print_data(void) {
 
 // HAL_Delay 重写
 void HAL_Delay(__IO uint32_t delay) {
+  if (delay > 0x4FFFFFFF) return; // delay is bad
   uint32_t start = 0, end = 0;
   uint32_t now = 0, past = 0;
   uint32_t count = 0;
@@ -438,6 +442,7 @@ void HAL_Delay(__IO uint32_t delay) {
       past = now, count = 0;
     }
   }
+  suc_delay = 1;
 }
 
 void loop_delay(int time){
@@ -483,7 +488,7 @@ void Error_Handler(int err)
       IWDG_Feed();
       GPIO_Init_Keyboard();
       reinit_i2c();
-      HAL_Delay(5000);
+      do_HAL_Delay(5000);
       return;
     }
     /*case BAD_READ_INPUT: {

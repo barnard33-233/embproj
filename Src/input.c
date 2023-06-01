@@ -13,7 +13,8 @@ extern int chk_speed_valid(uint16_t speed);
 extern void loop_delay(int time);
 extern void init_keyboard(void);
 extern void print_data(void);
-extern void HAL_Delay(__IO uint32_t delay);
+
+extern uint32_t i2c_timer;
 
 int keyerror_cnt = 0;
 
@@ -146,7 +147,7 @@ void module_Input(void) {
 			return;
 		}
     // 睡眠 2ms 来减少扰动
-    HAL_Delay(2000);
+    do_HAL_Delay(2000);
     set_zero_flag1();
     // 获取输入
     uint8_t tmp = input_filter();
