@@ -37,7 +37,7 @@ void init_mdb(void) {
   mdb0.score_index = 0;
   mdb0.stop = 0;
   mdb0.chksum = get_chksum_mdb(&mdb0);
-  mdb1 = mdb2 = mdb0;
+  mdb1 = mdb0; mdb2 = mdb0;
 }
 void init_cdb(void) {
   cdb0.flag1 = 0;
@@ -47,13 +47,13 @@ void init_cdb(void) {
   cdb0.speed_buffer = 0;
   cdb0.disp_i = 0;
   cdb0.chksum = get_chksum_cdb(&cdb0);
-  cdb1 = cdb2 = cdb0;
+  cdb1 = cdb0; cdb2 = cdb0;
 }
 void init_ddb(void) {
   ddb0.dat.v[0] = 0;
   ddb0.dat.v[1] = 0;
   ddb0.chksum = get_chksum_ddb(&ddb0);
-  ddb1 = ddb2 = ddb0;
+  ddb1 = ddb0; ddb2 = ddb0;
 }
 
 int restore_data(void) {
@@ -61,30 +61,30 @@ int restore_data(void) {
   int hot = 0;
   // restore music data
   if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
-    mdb0 = mdb2 = mdb1;
+    mdb0 = mdb1; mdb2 = mdb1;
     hot = 1;
   } else if (get_chksum_mdb(&mdb2) == mdb2.chksum) {
-    mdb0 = mdb1 = mdb2;
+    mdb0 = mdb2; mdb1 = mdb2;
     hot = 1;
   } else {
     init_mdb();
   }
   // restore control data
   if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
-    cdb0 = cdb2 = cdb1;
+    cdb0 = cdb1; cdb2 = cdb1;
     hot = 1;
   } else if (get_chksum_cdb(&cdb2) == cdb2.chksum) {
-    cdb0 = cdb1 = cdb2;
+    cdb0 = cdb2; cdb1 = cdb2;
     hot = 1;
   } else {
     init_cdb();
   }
   // restore display data
   if (get_chksum_ddb(&ddb1) == ddb1.chksum) {
-    ddb0 = ddb2 = ddb1;
+    ddb0 = ddb1; ddb2 = ddb1;
     hot = 1;
   } else if (get_chksum_ddb(&ddb2) == ddb2.chksum) {
-    ddb0 = ddb1 = ddb2;
+    ddb0 = ddb2; ddb1 = ddb2;
     hot = 1;
   } else {
     init_ddb();
@@ -96,33 +96,33 @@ int restore_data(void) {
 // 就算没有 get 和 set 的时候也要定时检查
 void recover_mdbs(void) {  
   if (get_chksum_mdb(&mdb0) == mdb0.chksum) {
-    mdb1 = mdb2 = mdb0;
+    mdb1 = mdb0; mdb2 = mdb0;
   } else if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
-    mdb0 = mdb2 = mdb1;
+    mdb0 = mdb1; mdb2 = mdb1;
   } else if (get_chksum_mdb(&mdb2) == mdb2.chksum) {
-    mdb0 = mdb1 = mdb2;
+    mdb0 = mdb2; mdb1 = mdb2;
   } else {
     Error_Handler(MDB_DESTORY);
   }
 }
 void recover_cdbs(void) {
   if (get_chksum_cdb(&cdb0) == cdb0.chksum) {
-    cdb1 = cdb2 = cdb0;
+    cdb1 = cdb0; cdb2 = cdb0;
   } else if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
-    cdb0 = cdb2 = cdb1;
+    cdb0 = cdb1; cdb2 = cdb1;
   } else if (get_chksum_cdb(&cdb2) == cdb2.chksum) {
-    cdb0 = cdb1 = cdb2;
+    cdb0 = cdb2; cdb1 = cdb2;
   } else {
     Error_Handler(CDB_DESTORY);
   }
 }
 void recover_ddbs(void) {
   if (get_chksum_ddb(&ddb0) == ddb0.chksum) {
-    ddb1 = ddb2 = ddb0;
+    ddb1 = ddb0; ddb2 = ddb0;
   } else if (get_chksum_ddb(&ddb1) == ddb1.chksum) {
-    ddb0 = ddb2 = ddb1;
+    ddb0 = ddb1; ddb2 = ddb1;
   } else if (get_chksum_ddb(&ddb2) == ddb2.chksum) {
-    ddb0 = ddb1 = ddb2;
+    ddb0 = ddb2; ddb1 = ddb2;
   } else {
     Error_Handler(DDB_DESTORY);
   }
