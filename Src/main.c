@@ -252,10 +252,7 @@ void fix_pre_runing(void) {
   // 如果发现前面有模块被跳过 就进行补齐
   // 此处的目的是维护程序的可靠性: 
   // 因为如果前面的模块没被执行，music 的波形会出现失真
-  if (!(comp_flag & 1)) module_TimeEvent();
-  if (!(comp_flag & 2)) refresh_Display();
-  if (!(comp_flag & 4)) do_I2C_regular();
-  comp_flag = 0;
+  if (comp_flag != 7) Error_Handler(-1);
 }
 
 int main(void)
