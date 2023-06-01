@@ -46,10 +46,11 @@
 
 // #define DEBUG_TEST_DURING
 
-#define DURING_TIME_EVENT 40
-#define DURING_REFRESH_RAM 20
-#define DURING_REFRESH_TUBE 430
-#define DURING_EXPAND_REINIT 300
+#define DURING_TIME_EVENT 59
+#define DURING_REFRESH_RAM 39
+#define DURING_REFRESH_TUBE 449
+#define DURING_I2C_REINIT 75
+#define DURING_EXPAND_REINIT (DURING_REFRESH_TUBE-DURING_I2C_REINIT)
 /* Private variables ---------------------------------------------------------*/
 
 #define SCORE_LENGTH 14
