@@ -127,6 +127,8 @@ void module_TimeEvent(void) {
     IWDG_Feed();
     init_keyboard();
     init_beep();
+    // 检查备份
+    recover_backups();
     // 设置时间中断为开
     __HAL_RCC_PWR_CLK_ENABLE();
 #ifdef DEBUG_TEST_DURING
