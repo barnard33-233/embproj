@@ -237,7 +237,7 @@ void do_I2C_regular(void) {
 #endif
       IWDG_Feed();
       reinit_i2c(); // 重新初始化 i2c 和它的两个引脚
-      // TODO: HAL_Delay(DURING_EXPAND_REINIT + rand() % 10);
+      do_HAL_Delay(DURING_EXPAND_REINIT + rand() % 10);
 #ifdef DEBUG_TEST_DURING
       e = HAL_GetTick();
       printf("reinit I2C: %d\r\n", e - t);
