@@ -13,7 +13,8 @@ extern int chk_speed_valid(uint16_t speed);
 extern void loop_delay(int time);
 extern void init_keyboard(void);
 extern void print_data(void);
-extern void HAL_Delay(__IO uint32_t delay);
+
+extern uint32_t i2c_timer;
 
 int keyerror_cnt = 0;
 
@@ -61,20 +62,20 @@ void switch_flag(void){
       }
       // 重置 receiving 标志位和缓冲区
       IWDG_Feed();
-      set_speed_buffer(0);
-      set_receiving(0);
+      set_zero_speed_buffer();
+      set_zero_receiving();
       printf("Finish receiving!\r\n");
     } else {
       // 输入非数字和 # 值则取消
       printf("Commit Cancel! Finish receiving.\r\n");
-      set_speed_buffer(0);
-      set_receiving(0);
+      set_zero_speed_buffer();
+      set_zero_receiving();
     }
   } else {
     switch (flag) {
-      case 14: set_receiving(1); printf("Start receiving...\r\n"); break;
-      case 10: set_stop(1); printf("Pause music...\r\n"); break;
-      case 11: set_stop(0); printf("Continue music...\r\n"); break;
+      case 14: set_one_receiving(); printf("Start receiving...\r\n"); break;
+      case 10: set_one_stop(); printf("Pause music...\r\n"); break;
+      case 11: set_zero_stop(); printf("Continue music...\r\n"); break;
       case 15: {
         IWDG_Feed();
         printf("-------------------------------------------------\r\n");
@@ -103,21 +104,21 @@ int read_key(uint8_t *tmp) {
 
 uint8_t input_filter(void) {
   uint8_t tmp_rx1 = 0, tmp_rx2 = 0, tmp_rx3 = 0;
-  int comp_flag = 0, bad_c = 0; // 序列完整性标志
+  int comp_read = 0, bad_c = 0; // 序列完整性标志
   // 第一次读入
   if (read_key(&tmp_rx1) != 0) bad_c++;
-  comp_flag ++;
+  comp_read ++;
   // 第二次读入
   if (read_key(&tmp_rx2) != 0) bad_c++;
-  comp_flag ++;
+  comp_read ++;
   // 失败次数大于 2，放弃本次输入并累计错误次数
   if (bad_c >= 2) return keyerror_cnt ++, 0;
   // 第三次读入
   if (read_key(&tmp_rx3) != 0) bad_c++;
-  comp_flag ++;
+  comp_read ++;
   if (bad_c >= 2) return keyerror_cnt ++, 0;
   // 代码前序检查
-  if (comp_flag != 3) {
+  if (comp_read != 3) {
     printf("You may under an attack! Input abort!\r\n");
     return 0;
   }
@@ -146,8 +147,8 @@ void module_Input(void) {
 			return;
 		}
     // 睡眠 2ms 来减少扰动
-    HAL_Delay(2000);
-    set_flag1(0);
+    do_HAL_Delay(2000);
+    set_zero_flag1();
     // 获取输入
     uint8_t tmp = input_filter();
     // 无效输入直接忽略

@@ -38,6 +38,10 @@ typedef BACKUP_DISPLAY DDB;
 #define __BACKUP_ONE__ __attribute__((section("BACKUP_ONE"), zero_init))
 #define __BACKUP_TWO__ __attribute__((section("BACKUP_TWO"), zero_init))
 
+void init_mdb(void);
+void init_cdb(void);
+void init_ddb(void);
+
 int restore_data(void);
 
 void recover_mdbs(void);
@@ -75,5 +79,13 @@ uint8_t get_disp_buf(int i);
 void update_disp_left(void);
 void update_disp_right(void);
 void update_disp_mid(void);
+
+void set_zero_speed_buffer(void);
+void set_zero_receiving(void);
+void set_zero_flag1(void);
+void set_zero_stop(void);
+
+void set_one_receiving(void);
+void set_one_stop(void);
 
 #endif

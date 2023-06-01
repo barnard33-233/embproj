@@ -32,13 +32,14 @@ uint32_t get_chksum_ddb(DDB *p) {
 }
 
 // 下面的三个 init 用于冷启动的初始化
-__STATIC_INLINE void init_mdb0(void) {
+void init_mdb(void) {
   mdb0.speed = 120;
   mdb0.score_index = 0;
   mdb0.stop = 0;
   mdb0.chksum = get_chksum_mdb(&mdb0);
+  mdb1 = mdb2 = mdb0;
 }
-__STATIC_INLINE void init_cdb0(void) {
+void init_cdb(void) {
   cdb0.flag1 = 0;
   cdb0.Rx1_Buffer = 0;
   cdb0.receiving = 0;
@@ -46,11 +47,13 @@ __STATIC_INLINE void init_cdb0(void) {
   cdb0.speed_buffer = 0;
   cdb0.disp_i = 0;
   cdb0.chksum = get_chksum_cdb(&cdb0);
+  cdb1 = cdb2 = cdb0;
 }
-__STATIC_INLINE void init_ddb0(void) {
+void init_ddb(void) {
   ddb0.dat.v[0] = 0;
   ddb0.dat.v[1] = 0;
   ddb0.chksum = get_chksum_ddb(&ddb0);
+  ddb1 = ddb2 = ddb0;
 }
 
 int restore_data(void) {
@@ -64,8 +67,7 @@ int restore_data(void) {
     mdb0 = mdb1 = mdb2;
     hot = 1;
   } else {
-    init_mdb0();
-    mdb1 = mdb2 = mdb0;
+    init_mdb();
   }
   // restore control data
   if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
@@ -75,8 +77,7 @@ int restore_data(void) {
     cdb0 = cdb1 = cdb2;
     hot = 1;
   } else {
-    init_cdb0();
-    cdb1 = cdb2 = cdb0;
+    init_cdb();
   }
   // restore display data
   if (get_chksum_ddb(&ddb1) == ddb1.chksum) {
@@ -86,8 +87,7 @@ int restore_data(void) {
     ddb0 = ddb1 = ddb2;
     hot = 1;
   } else {
-    init_ddb0();
-    ddb1 = ddb2 = ddb0;
+    init_ddb();
   }
   return hot;
 }
@@ -134,36 +134,53 @@ void recover_backups(void) {
 }
 
 // 下面的函数会校验三个备份 并选出可靠的数据来源
-// TODO: 可以补充一下 Error_Handler
 MDB* get_correct_mdb(void) {
-  if (get_chksum_mdb(&mdb0) == mdb0.chksum) 
-    return &mdb0;
-  if (get_chksum_mdb(&mdb1) == mdb1.chksum)
-    return &mdb1;
-  if (get_chksum_mdb(&mdb2) == mdb2.chksum) 
-    return &mdb2;
-  Error_Handler(MDB_DESTORY);
-  return NULL;
+  if (get_chksum_mdb(&mdb0) == mdb0.chksum) {
+    mdb1 = mdb0;
+    mdb2 = mdb0;
+  }
+  else if (get_chksum_mdb(&mdb1) == mdb1.chksum) {
+    mdb0 = mdb1;
+    mdb2 = mdb1;
+  }
+  else if (get_chksum_mdb(&mdb2) == mdb2.chksum) {
+    mdb0 = mdb2;
+    mdb1 = mdb2;
+  }
+  else Error_Handler(MDB_DESTORY);
+  return &mdb0;
 }
 CDB* get_correct_cdb(void) {
-  if (get_chksum_cdb(&cdb0) == cdb0.chksum)
-    return &cdb0;
-  if (get_chksum_cdb(&cdb1) == cdb1.chksum)
-    return &cdb1;
-  if (get_chksum_cdb(&cdb2) == cdb2.chksum)
-    return &cdb2;
-  Error_Handler(CDB_DESTORY);
-  return NULL;
+  if (get_chksum_cdb(&cdb0) == cdb0.chksum) {
+    cdb1 = cdb0;
+    cdb2 = cdb0;
+  }
+  else if (get_chksum_cdb(&cdb1) == cdb1.chksum) {
+    cdb0 = cdb1;
+    cdb2 = cdb1;
+  }
+  else if (get_chksum_cdb(&cdb2) == cdb2.chksum) {
+    cdb0 = cdb2;
+    cdb1 = cdb2;
+  }
+  else Error_Handler(CDB_DESTORY);
+  return &cdb0;
 }
 DDB* get_correct_ddb(void) {
-  if (get_chksum_ddb(&ddb0) == ddb0.chksum)
-    return &ddb0;
-  if (get_chksum_ddb(&ddb1) == ddb1.chksum)
-    return &ddb1;
-  if (get_chksum_ddb(&ddb2) == ddb2.chksum)
-    return &ddb2;
-  Error_Handler(DDB_DESTORY);
-  return NULL;
+  if (get_chksum_ddb(&ddb0) == ddb0.chksum) {
+    ddb1 = ddb0;
+    ddb2 = ddb0;
+  }
+  else if (get_chksum_ddb(&ddb1) == ddb1.chksum) {
+    ddb0 = ddb1;
+    ddb2 = ddb1;
+  }
+  else if (get_chksum_ddb(&ddb2) == ddb2.chksum) {
+    ddb0 = ddb2;
+    ddb1 = ddb2;
+  }
+  else Error_Handler(DDB_DESTORY);
+  return &ddb0;
 }
 
 // music data
@@ -260,7 +277,11 @@ void set_speed_buffer(uint16_t _new) {
   CDB_UPD_VALUE(speed_buffer, _new);
   CDB_UPD_ALL(speed_buffer, p->speed_buffer);
 }
-// 封装除了 set 以外的函数用于常用的操作是为了避免传参带来的出错可能
+
+// 封装除了 set 以外的更新函数
+// 是为了避免多余的传参带来的出错可能
+// 当然 也可以直接把函数改成宏定义或 static inline
+
 void plus_one_flag1(void) {
   CDB_PLUS_VALUE(flag1, 1);
   CDB_UPD_ALL(flag1, p->flag1);
@@ -341,4 +362,30 @@ void update_disp_mid(void) {
   }
   p->chksum = get_chksum_ddb(p);
   ddb0 = ddb1 = ddb2 = *p;
+}
+
+void set_zero_speed_buffer(void) {
+  CDB_UPD_VALUE(speed_buffer, 0);
+  CDB_UPD_ALL(speed_buffer, p->speed_buffer);
+}
+void set_zero_receiving(void) {
+  CDB_UPD_VALUE(receiving, 0);
+  CDB_UPD_ALL(receiving, p->receiving);
+}
+void set_zero_flag1(void) {
+  CDB_UPD_VALUE(flag1, 0);
+  CDB_UPD_ALL(flag1, p->flag1);
+}
+void set_zero_stop(void) {
+  MDB_UPD_VALUE(stop, 0);
+  MDB_UPD_ALL(stop, p->stop);
+}
+
+void set_one_receiving(void) {
+  CDB_UPD_VALUE(receiving, 1);
+  CDB_UPD_ALL(receiving, p->receiving);
+}
+void set_one_stop(void) {
+  MDB_UPD_VALUE(stop, 1);
+  MDB_UPD_ALL(stop, p->stop);
 }
