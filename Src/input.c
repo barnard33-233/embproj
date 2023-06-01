@@ -104,21 +104,21 @@ int read_key(uint8_t *tmp) {
 
 uint8_t input_filter(void) {
   uint8_t tmp_rx1 = 0, tmp_rx2 = 0, tmp_rx3 = 0;
-  int comp_flag = 0, bad_c = 0; // 序列完整性标志
+  int comp_read = 0, bad_c = 0; // 序列完整性标志
   // 第一次读入
   if (read_key(&tmp_rx1) != 0) bad_c++;
-  comp_flag ++;
+  comp_read ++;
   // 第二次读入
   if (read_key(&tmp_rx2) != 0) bad_c++;
-  comp_flag ++;
+  comp_read ++;
   // 失败次数大于 2，放弃本次输入并累计错误次数
   if (bad_c >= 2) return keyerror_cnt ++, 0;
   // 第三次读入
   if (read_key(&tmp_rx3) != 0) bad_c++;
-  comp_flag ++;
+  comp_read ++;
   if (bad_c >= 2) return keyerror_cnt ++, 0;
   // 代码前序检查
-  if (comp_flag != 3) {
+  if (comp_read != 3) {
     printf("You may under an attack! Input abort!\r\n");
     return 0;
   }

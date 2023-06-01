@@ -47,6 +47,7 @@ extern int suc_delay;
 extern void HAL_Delay(__IO uint32_t delay);
 
 __STATIC_INLINE void do_HAL_Delay(__IO uint32_t delay) {
+  if (delay > 0x4FFFFFFF) return;
   suc_delay = 0;
   while(suc_delay == 0) HAL_Delay(delay);
 }
