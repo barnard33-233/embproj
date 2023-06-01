@@ -295,20 +295,20 @@ int main(void)
       module_TimeEvent();
       do_I2C_regular();
       module_Input();
-      module_Music();
     } else if (t == 1) {
       module_Input();
       do_I2C_regular();
       refresh_Display();
       module_TimeEvent();
-      module_Music();
     } else {
       module_Input();
       refresh_Display();
       do_I2C_regular();
       module_TimeEvent();
-      module_Music();
     }
+    // 前序检查并修复 以此保证波形稳定
+    fix_pre_runing();
+    module_Music();
   }
 }
 
