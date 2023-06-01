@@ -205,8 +205,8 @@ void do_I2C_regular(void) {
   // 往数码管的显示缓冲区写一个字节
   static int badc = 0;
   static uint8_t cnt = 0;
-  // 每 100ms 进行一次
-  if (i2c_timer > 100000) {
+  // 每 50ms 进行一次
+  if (i2c_timer > 50000) {
     cnt++;
     // 每刷新 7 次数码管就重刷一次 I2C
     if (cnt & 7) {
