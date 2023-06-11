@@ -253,6 +253,7 @@ void fix_pre_runing(void) {
   // 此处的目的是维护程序的可靠性: 
   // 因为如果前面的模块没被执行，music 的波形会出现失真
   if (comp_flag != 7) Error_Handler(-1);
+  comp_flag = 0;
 }
 
 int main(void)
